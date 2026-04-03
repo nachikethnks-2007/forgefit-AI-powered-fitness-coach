@@ -1,16 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useAppStore } from '@/store/useAppStore';
+import ModeSelection from '@/components/ModeSelection';
+import Onboarding from '@/components/Onboarding';
+import Dashboard from '@/components/Dashboard';
+import AICoach from '@/components/AICoach';
+import WorkoutTracker from '@/components/WorkoutTracker';
+import ProgressHub from '@/components/ProgressHub';
+import SettingsPage from '@/components/SettingsPage';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
-  return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
-  );
+const pages: Record<string, React.FC> = {
+  home: ModeSelection,
+  onboarding: Onboarding,
+  dashboard: Dashboard,
+  coach: AICoach,
+  workouts: WorkoutTracker,
+  progress: ProgressHub,
+  settings: SettingsPage,
 };
 
-const Index = PlaceholderIndex;
+const Index = () => {
+  const currentPage = useAppStore((s) => s.currentPage);
+  const PageComponent = pages[currentPage] || ModeSelection;
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={currentPage}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.25 }}
+      >
+        <PageComponent />
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 export default Index;
