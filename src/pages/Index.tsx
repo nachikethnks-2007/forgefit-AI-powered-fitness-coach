@@ -6,6 +6,8 @@ import AICoach from '@/components/AICoach';
 import WorkoutTracker from '@/components/WorkoutTracker';
 import ProgressHub from '@/components/ProgressHub';
 import SettingsPage from '@/components/SettingsPage';
+import GoalCompletion from '@/components/GoalCompletion';
+import Achievements from '@/components/Achievements';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const pages: Record<string, React.FC> = {
@@ -16,6 +18,8 @@ const pages: Record<string, React.FC> = {
   workouts: WorkoutTracker,
   progress: ProgressHub,
   settings: SettingsPage,
+  goalComplete: GoalCompletion,
+  achievements: Achievements,
 };
 
 const Index = () => {

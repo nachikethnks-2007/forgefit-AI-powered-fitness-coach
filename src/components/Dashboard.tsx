@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
-import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, ChevronRight, Plus } from 'lucide-react';
+import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, ChevronRight, Plus, Trophy } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { toast } from 'sonner';
+import MuscleHeatmap from '@/components/MuscleHeatmap';
+import WeeklyCheckIn from '@/components/WeeklyCheckIn';
 
 const modeIcons = { cut: Flame, bulk: Dumbbell, recomposition: Scale };
 const modeColors = { cut: 'text-orange-400', bulk: 'text-primary', recomposition: 'text-violet-400' };
@@ -12,6 +14,18 @@ export default function Dashboard() {
   const { profile, nutritionPlan, foodLog, workoutSessions, measurements, setCurrentPage, addFoodEntry } = useAppStore();
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+  const [goalReached, setGoalReached] = useState(false);
+
+  // Check if target weight reached
+  useEffect(() => {
+    if (!profile?.targetWeight || measurements.length === 0) return;
+    const latest = measurements[measurements.length - 1].weight;
+    const target = profile.targetWeight;
+    const mode = profile.mode;
+    if (mode === 'cut' && latest <= target) setGoalReached(true);
+    else if (mode === 'bulk' && latest >= target) setGoalReached(true);
+    else if (mode === 'recomposition' && Math.abs(latest - target) <= 1) setGoalReached(true);
+  }, [profile, measurements]);
 
   if (!profile || !nutritionPlan) return null;
 
@@ -184,6 +198,35 @@ export default function Dashboard() {
             </div>
           </motion.div>
         )}
+
+        {/* Goal Reached Banner */}
+        {goalReached && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-strong rounded-2xl p-5 border-glow glow-primary text-center"
+          >
+            <Trophy className="w-10 h-10 text-primary mx-auto mb-2" />
+            <h2 className="font-heading font-bold text-xl gradient-text">Goal Reached!</h2>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">You've hit your target weight. Ready to celebrate?</p>
+            <button
+              onClick={() => setCurrentPage('goalComplete')}
+              className="gradient-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold text-sm"
+            >
+              View Achievement Summary
+            </button>
+          </motion.div>
+        )}
+
+        {/* Muscle Heatmap */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <MuscleHeatmap />
+        </motion.div>
+
+        {/* Weekly Check-In */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <WeeklyCheckIn />
+        </motion.div>
 
         {/* Nav Cards */}
         <div className="grid grid-cols-2 gap-3">
