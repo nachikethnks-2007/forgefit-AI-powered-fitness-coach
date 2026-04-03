@@ -9,10 +9,16 @@ interface GroqResponse {
 }
 
 export async function callGroq(
-  apiKey: string,
   messages: Array<{ role: string; content: string }>,
   model = 'llama-3.3-70b-versatile'
 ): Promise<string> {
+
+  const apiKey = localStorage.getItem("groqApiKey");
+
+  if (!apiKey) {
+    throw new Error("Missing API key");
+  }
+
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
@@ -88,7 +94,7 @@ User data:
 - Mode: ${profile.mode}
 - Timeline: ${profile.timeline}`;
 
-  const response = await callGroq(apiKey, [
+  const response = await callGroq([
     { role: 'system', content: 'You are a precision fitness calculator. Return ONLY valid JSON, no additional text.' },
     { role: 'user', content: prompt },
   ]);
@@ -150,7 +156,7 @@ export async function generateWorkoutPlan(apiKey: string, profile: UserProfile):
 User: ${profile.fitnessLevel} level, ${profile.trainingDays} days/week, ${profile.equipment} equipment, mode: ${profile.mode}.
 ${profile.injuries ? `Injuries: ${profile.injuries}` : ''}`;
 
-  return await callGroq(apiKey, [
+  return await callGroq([
     { role: 'system', content: 'You are an expert workout programmer. Return ONLY valid JSON.' },
     { role: 'user', content: prompt },
   ]);
