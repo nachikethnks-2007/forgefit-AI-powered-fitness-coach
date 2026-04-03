@@ -24,20 +24,26 @@ const pages: Record<string, React.FC> = {
 
 const Index = () => {
   const currentPage = useAppStore((s) => s.currentPage);
-  const PageComponent = pages[currentPage] || ModeSelection;
+
+  // 🔥 SAFE FALLBACK
+  const safePage = currentPage && pages[currentPage] ? currentPage : "home";
+
+  const PageComponent = pages[safePage];
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={currentPage}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.25 }}
-      >
-        <PageComponent />
-      </motion.div>
-    </AnimatePresence>
+    <div style={{ minHeight: "100vh", background: "#000" }}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={safePage}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.25 }}
+        >
+          <PageComponent />
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 };
 
