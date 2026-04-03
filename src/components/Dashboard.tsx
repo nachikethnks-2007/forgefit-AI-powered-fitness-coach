@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
-import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, ChevronRight, Plus } from 'lucide-react';
+import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, ChevronRight, Plus, Trophy } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { toast } from 'sonner';
+import MuscleHeatmap from '@/components/MuscleHeatmap';
+import WeeklyCheckIn from '@/components/WeeklyCheckIn';
 
 const modeIcons = { cut: Flame, bulk: Dumbbell, recomposition: Scale };
 const modeColors = { cut: 'text-orange-400', bulk: 'text-primary', recomposition: 'text-violet-400' };
