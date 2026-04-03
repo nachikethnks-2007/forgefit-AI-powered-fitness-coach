@@ -199,6 +199,35 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* Goal Reached Banner */}
+        {goalReached && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-strong rounded-2xl p-5 border-glow glow-primary text-center"
+          >
+            <Trophy className="w-10 h-10 text-primary mx-auto mb-2" />
+            <h2 className="font-heading font-bold text-xl gradient-text">Goal Reached!</h2>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">You've hit your target weight. Ready to celebrate?</p>
+            <button
+              onClick={() => setCurrentPage('goalComplete')}
+              className="gradient-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold text-sm"
+            >
+              View Achievement Summary
+            </button>
+          </motion.div>
+        )}
+
+        {/* Muscle Heatmap */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <MuscleHeatmap />
+        </motion.div>
+
+        {/* Weekly Check-In */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <WeeklyCheckIn />
+        </motion.div>
+
         {/* Nav Cards */}
         <div className="grid grid-cols-2 gap-3">
           {[
