@@ -14,6 +14,20 @@ export default function Dashboard() {
   const { profile, nutritionPlan, foodLog, workoutSessions, measurements, setCurrentPage, addFoodEntry } = useAppStore();
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+  const [goalReached, setGoalReached] = useState(false);
+
+  // Check if target weight reached
+  useEffect(() => {
+    if (!profile?.targetWeight || measurements.length === 0) return;
+    const latest = measurements[measurements.length - 1].weight;
+    const target = profile.targetWeight;
+    const mode = profile.mode;
+    if (mode === 'cut' && latest <= target) setGoalReached(true);
+    else if (mode === 'bulk' && latest >= target) setGoalReached(true);
+    else if (mode === 'recomposition' && Math.abs(latest - target) <= 1) setGoalReached(true);
+  }, [profile, measurements]);
+  const [showFoodModal, setShowFoodModal] = useState(false);
+  const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
 
   if (!profile || !nutritionPlan) return null;
 
