@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,14 +10,15 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [apiKey, setApiKey] = useState("");
+  // ✅ ONLY for controlling app
+  const [apiKey] = useState(
+    () => localStorage.getItem("groqApiKey") || ""
+  );
 
-  useEffect(() => {
-    const key = localStorage.getItem("groqApiKey");
-    if (key) setApiKey(key);
-  }, []);
+  // ✅ ONLY for typing input
+  const [tempKey, setTempKey] = useState("");
 
-  // 🔥 API KEY SCREEN (shown first if no key)
+  // 🔥 API KEY SCREEN
   if (!apiKey) {
     return (
       <div style={{
@@ -30,22 +31,27 @@ const App = () => {
         flexDirection: "column"
       }}>
         <h2>Enter your Groq API Key</h2>
+
         <input
           type="text"
-          value={apiKey}
+          value={tempKey}
           placeholder="Paste your API key..."
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={(e) => setTempKey(e.target.value)}
           style={{
             padding: "10px",
             margin: "10px",
             width: "300px",
             borderRadius: "8px",
-            border: "none"
+            border: "none",
+            outline: "none"
           }}
         />
+
         <button
           onClick={() => {
-            localStorage.setItem("groqApiKey", apiKey);
+            if (!tempKey.trim()) return alert("Enter API key");
+
+            localStorage.setItem("groqApiKey", tempKey);
             window.location.reload();
           }}
           style={{
@@ -63,7 +69,7 @@ const App = () => {
     );
   }
 
-  // ✅ ORIGINAL APP (unchanged)
+  // ✅ MAIN APP
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
