@@ -26,8 +26,6 @@ export default function Dashboard() {
     else if (mode === 'bulk' && latest >= target) setGoalReached(true);
     else if (mode === 'recomposition' && Math.abs(latest - target) <= 1) setGoalReached(true);
   }, [profile, measurements]);
-  const [showFoodModal, setShowFoodModal] = useState(false);
-  const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
 
   if (!profile || !nutritionPlan) return null;
 
