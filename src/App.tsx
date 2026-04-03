@@ -32,6 +32,7 @@ const App = () => {
         <h2>Enter your Groq API Key</h2>
         <input
           type="text"
+          value={apiKey}
           placeholder="Paste your API key..."
           onChange={(e) => setApiKey(e.target.value)}
           style={{
