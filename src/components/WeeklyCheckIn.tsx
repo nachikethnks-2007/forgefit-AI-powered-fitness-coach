@@ -4,6 +4,7 @@ import { Calendar, Sparkles, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { callGroq, buildSystemPrompt } from '@/services/groqClient';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 
 export default function WeeklyCheckIn() {
   const { profile, nutritionPlan, foodLog, workoutSessions, measurements } = useAppStore();
@@ -57,14 +58,12 @@ WEEKLY CHECK-IN DATA (last 7 days):
 - Weight at start: ${profile.weight} ${profile.units === 'metric' ? 'kg' : 'lbs'}
 ${profile.targetWeight ? `- Target weight: ${profile.targetWeight} ${profile.units === 'metric' ? 'kg' : 'lbs'}` : ''}
 
-Generate a comprehensive weekly review with these sections:
+Generate a comprehensive weekly review with:
 1. Overview
 2. What Went Well
 3. Areas to Improve
 4. Adjusted Targets
 5. Focus for Next Week
-
-Be encouraging but honest and use the data above.
 `;
 
     try {
@@ -79,7 +78,6 @@ Be encouraging but honest and use the data above.
         { role: 'user', content: context },
       ];
 
-      // ✅ FIXED HERE
       const response = await callGroq(messages);
 
       setReview(response);
@@ -93,7 +91,6 @@ Be encouraging but honest and use the data above.
 
   return (
     <>
-      {/* Button */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -103,6 +100,7 @@ Be encouraging but honest and use the data above.
         <div className="gradient-primary p-3 rounded-xl">
           <Calendar className="w-6 h-6 text-primary-foreground" />
         </div>
+
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-heading font-bold">Weekly AI Check-In</h3>
@@ -116,10 +114,10 @@ Be encouraging but honest and use the data above.
             {isSunday ? 'It\'s Sunday — time for your weekly review!' : 'Get an AI-powered review of your week'}
           </p>
         </div>
+
         <Sparkles className="w-5 h-5 text-primary" />
       </motion.button>
 
-      {/* Modal */}
       <AnimatePresence>
         {open && (
           <div
@@ -155,8 +153,8 @@ Be encouraging but honest and use the data above.
                   </p>
                 </div>
               ) : review ? (
-                <div className="prose prose-sm prose-invert max-w-none text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                  {review}
+                <div className="prose prose-sm prose-invert max-w-none text-foreground text-sm leading-relaxed">
+                  <ReactMarkdown>{review}</ReactMarkdown>
                 </div>
               ) : null}
             </motion.div>
