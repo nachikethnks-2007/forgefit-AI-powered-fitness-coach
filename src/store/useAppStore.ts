@@ -10,6 +10,7 @@ import type {
   BodyMeasurement,
   ChatMessage,
   CompletedGoal,
+  ForgefitAlert,
 } from '@/types/fitness';
 import { recalculateFullNutritionPreservingMode } from '@/utils/calculations';
 import { syncForgefitLocalStorage } from '@/utils/forgefitLocalStorage';
@@ -42,6 +43,8 @@ interface AppActions {
   setGroqApiKey: (key: string) => void;
   setCurrentPage: (page: string) => void;
   resetAll: () => void;
+  addForgefitAlert: (alert: ForgefitAlert) => void;
+  markForgefitAlertRead: (id: string) => void;
 }
 
 const initialState: AppState = {
@@ -55,6 +58,7 @@ const initialState: AppState = {
   completedGoals: [],
   groqApiKey: '',
   currentPage: 'home',
+  forgefitAlerts: [],
 };
 
 export const useAppStore = create<AppState & AppActions>()(
@@ -78,8 +82,18 @@ export const useAppStore = create<AppState & AppActions>()(
       addFoodEntry: (entry) => set((s) => ({ foodLog: [...s.foodLog, entry] })),
       removeFoodEntry: (id) => set((s) => ({ foodLog: s.foodLog.filter((f) => f.id !== id) })),
       setWorkoutPlan: (plan) => set({ workoutPlan: plan }),
-      addWorkoutSession: (session) => set((s) => ({ workoutSessions: [...s.workoutSessions, session] })),
-      addMeasurement: (m) => set((s) => ({ measurements: [...s.measurements, m] })),
+      addWorkoutSession: (session) => {
+        set((s) => ({ workoutSessions: [...s.workoutSessions, session] }));
+        queueMicrotask(() => {
+          void import('@/utils/proactiveAI').then((mod) => mod.runAfterWorkoutLogged());
+        });
+      },
+      addMeasurement: (m) => {
+        set((s) => ({ measurements: [...s.measurements, m] }));
+        queueMicrotask(() => {
+          void import('@/utils/proactiveAI').then((mod) => mod.runAfterWeightLogged());
+        });
+      },
       addChatMessage: (msg) => set((s) => ({ chatHistory: [...s.chatHistory, msg] })),
       clearChatHistory: () => set({ chatHistory: [] }),
       completeGoal: (goal) => set((s) => ({
@@ -91,14 +105,27 @@ export const useAppStore = create<AppState & AppActions>()(
         workoutSessions: [],
         measurements: [],
         chatHistory: [],
+        forgefitAlerts: [],
         currentPage: 'home',
       })),
       setGroqApiKey: (key) => set({ groqApiKey: key }),
       setCurrentPage: (page) => set({ currentPage: page }),
       resetAll: () => set({ ...initialState }),
+      addForgefitAlert: (alert) =>
+        set((s) => ({ forgefitAlerts: [alert, ...(s.forgefitAlerts ?? [])] })),
+      markForgefitAlertRead: (id) =>
+        set((s) => ({
+          forgefitAlerts: (s.forgefitAlerts ?? []).map((a) => (a.id === id ? { ...a, read: true } : a)),
+        })),
     }),
     {
       name: 'forgefit-storage',
+      merge: (persisted, current) => {
+        const p = typeof persisted === 'object' && persisted ? (persisted as Partial<AppState>) : {};
+        const merged = { ...current, ...p } as AppState & AppActions;
+        if (!Array.isArray(merged.forgefitAlerts)) merged.forgefitAlerts = [];
+        return merged;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) syncForgefitLocalStorage(state);
       },

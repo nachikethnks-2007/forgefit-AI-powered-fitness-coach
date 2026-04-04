@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Send, ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '@/store/useAppStore';
-import { callGroq, buildSystemPrompt } from '@/services/groqClient';
+import { callGroqWithTools, chatMessagesToApiPayload } from '@/services/groqClient';
 import { toast } from 'sonner';
 
 export default function AICoach() {
@@ -34,18 +34,26 @@ export default function AICoach() {
 
     try {
       const foodContext = todayFood.length
-        ? `Today's food log: ${todayFood.map((f) => `${f.name} (${f.calories}kcal, ${f.protein}p/${f.carbs}c/${f.fats}f)`).join(', ')}`
+        ? `Today's food log detail: ${todayFood.map((f) => `${f.name} (${f.calories}kcal, ${f.protein}p/${f.carbs}c/${f.fats}f)`).join(', ')}`
         : 'No food logged today yet.';
 
-      const systemPrompt = buildSystemPrompt(profile, nutritionPlan, foodContext);
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        ...chatHistory.map((m) => ({ role: m.role, content: m.content })),
-        { role: 'user', content: input },
-      ];
+      const conversation = chatMessagesToApiPayload(useAppStore.getState().chatHistory);
+      const { content, toolSummaries } = await callGroqWithTools(conversation, {
+        extraSystemSuffix: foodContext,
+      });
 
-      const response = await callGroq(messages);
-      addChatMessage({ role: 'assistant', content: response, timestamp: Date.now() });
+      if (toolSummaries.length) {
+        addChatMessage({
+          role: 'plan_update',
+          content: `⚡ AI Updated Your Plan — ${toolSummaries.join(' · ')}`,
+          timestamp: Date.now(),
+        });
+      }
+      addChatMessage({
+        role: 'assistant',
+        content: content || (toolSummaries.length ? 'Changes applied. Let me know if you want to tweak anything.' : ''),
+        timestamp: Date.now(),
+      });
     } catch (err: any) {
       toast.error(err.message || 'Failed to get AI response');
     }
@@ -91,6 +99,11 @@ export default function AICoach() {
         {chatHistory.filter(m => m.role !== 'system').map((msg, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {msg.role === 'plan_update' ? (
+              <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed glass-strong border-2 border-cyan-400">
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              </div>
+            ) : (
             <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
               msg.role === 'user' ? 'gradient-primary text-primary-foreground' : 'glass-strong border-glow'
             }`}>
@@ -107,6 +120,7 @@ export default function AICoach() {
                 </ReactMarkdown>
               )}
             </div>
+            )}
           </motion.div>
         ))}
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Sparkles, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { callGroq, buildSystemPrompt } from '@/services/groqClient';
+import { callGroqWithTools } from '@/services/groqClient';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
@@ -67,20 +67,19 @@ Generate a comprehensive weekly review with:
 `;
 
     try {
-      const systemPrompt = buildSystemPrompt(
-        profile,
-        nutritionPlan,
-        'You are doing a weekly performance review.'
+      const { content, toolSummaries } = await callGroqWithTools(
+        [{ role: 'user', content: context }],
+        {
+          extraSystemSuffix:
+            'You are doing a weekly performance review. Follow the numbered sections requested in the user message. Use tools if you change targets, body stats, workouts, or alerts.',
+        }
       );
 
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: context },
-      ];
-
-      const response = await callGroq(messages);
-
-      setReview(response);
+      setReview(
+        [toolSummaries.length ? `**Updates:**\n${toolSummaries.map((s) => `- ${s}`).join('\n')}` : '', content]
+          .filter(Boolean)
+          .join('\n\n')
+      );
     } catch (err: any) {
       toast.error(err.message || 'Failed to generate review');
       setOpen(false);

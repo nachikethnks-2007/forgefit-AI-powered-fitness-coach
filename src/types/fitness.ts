@@ -99,10 +99,27 @@ export interface BodyMeasurement {
   timestamp: number;
 }
 
+export type ChatMessageRole = 'user' | 'assistant' | 'system' | 'plan_update';
+
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: ChatMessageRole;
   content: string;
   timestamp: number;
+}
+
+export type ForgefitAlertType = 'warning' | 'success' | 'suggestion';
+
+export interface ForgefitAlert {
+  id: string;
+  type: ForgefitAlertType;
+  message: string;
+  read: boolean;
+  createdAt: number;
+}
+
+export interface ForgefitWeeklyCheckin {
+  summary: string;
+  savedAt: string;
 }
 
 export interface CompletedGoal {
@@ -128,4 +145,5 @@ export interface AppState {
   completedGoals: CompletedGoal[];
   groqApiKey: string;
   currentPage: string;
+  forgefitAlerts: ForgefitAlert[];
 }

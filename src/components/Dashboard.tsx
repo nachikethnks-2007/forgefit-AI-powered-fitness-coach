@@ -1,20 +1,37 @@
 import { motion } from 'framer-motion';
-import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, ChevronRight, Plus, Trophy } from 'lucide-react';
+import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, Plus, Trophy, Bell } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { toast } from 'sonner';
 import MuscleHeatmap from '@/components/MuscleHeatmap';
 import WeeklyCheckIn from '@/components/WeeklyCheckIn';
+import { computeGoalEta } from '@/utils/goalEta';
 
 const modeIcons = { cut: Flame, bulk: Dumbbell, recomposition: Scale };
 const modeColors = { cut: 'text-orange-400', bulk: 'text-primary', recomposition: 'text-violet-400' };
 
 export default function Dashboard() {
-  const { profile, nutritionPlan, foodLog, workoutSessions, measurements, setCurrentPage, addFoodEntry } = useAppStore();
+  const {
+    profile,
+    nutritionPlan,
+    foodLog,
+    workoutSessions,
+    measurements,
+    setCurrentPage,
+    addFoodEntry,
+    addMeasurement,
+    forgefitAlerts,
+    markForgefitAlertRead,
+  } = useAppStore();
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
   const [goalReached, setGoalReached] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
+
+  useEffect(() => {
+    void import('@/utils/proactiveAI').then((m) => m.runSundayWeeklyCheckin());
+  }, []);
 
   // Check if target weight reached
   useEffect(() => {
@@ -57,6 +74,22 @@ export default function Dashboard() {
   ];
 
   const weightData = measurements.slice(-14).map((m) => ({ date: m.date.slice(5), weight: m.weight }));
+
+  const unreadAlerts = forgefitAlerts.filter((a) => !a.read);
+  const latestInsight = unreadAlerts[0];
+  const goalEta = computeGoalEta(profile, measurements);
+
+  const handleLogWeight = () => {
+    const w = Number(weightInput);
+    if (!Number.isFinite(w) || w <= 0) return;
+    addMeasurement({
+      date: today,
+      weight: w,
+      timestamp: Date.now(),
+    });
+    setWeightInput('');
+    toast.success('Weight logged');
+  };
 
   const handleAddFood = () => {
     if (!food.name || !food.calories) return;
@@ -113,6 +146,50 @@ export default function Dashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* AI Insights */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          onClick={() => latestInsight && markForgefitAlertRead(latestInsight.id)}
+          className="w-full text-left glass-strong rounded-2xl p-5 border-glow relative"
+        >
+          {unreadAlerts.length > 0 && (
+            <span className="absolute top-3 right-3 min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+              {unreadAlerts.length}
+            </span>
+          )}
+          <div className="flex items-start gap-3">
+            <Bell className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <h2 className="font-heading font-bold text-lg mb-1">AI Insights</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {latestInsight
+                  ? latestInsight.message
+                  : 'All good! Keep logging your workouts and meals.'}
+              </p>
+            </div>
+          </div>
+        </motion.button>
+
+        {/* Goal ETA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="glass-strong rounded-2xl p-5 border-glow"
+        >
+          <h2 className="font-heading font-bold text-lg mb-2">Goal ETA</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {profile.targetWeight == null
+              ? 'Add a target weight in onboarding or settings to see an ETA.'
+              : goalEta
+                ? `At your current trend, you may reach your goal around ${goalEta.label} (~${goalEta.weeksRemaining} weeks).`
+                : 'Log at least 2 weigh-ins to predict your ETA.'}
+          </p>
+        </motion.div>
 
         {/* Nutrition Ring */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -178,6 +255,25 @@ export default function Dashboard() {
               <p className="text-2xl font-heading font-bold text-primary">{nutritionPlan.dailyCalories}</p>
               <p className="text-xs text-muted-foreground">Daily kcal</p>
             </div>
+          </div>
+          <div className="mt-4 flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="text-xs text-muted-foreground block mb-1">Log today&apos;s weight ({profile.units === 'metric' ? 'kg' : 'lbs'})</label>
+              <input
+                type="number"
+                value={weightInput}
+                onChange={(e) => setWeightInput(e.target.value)}
+                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                placeholder={String(profile.weight)}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleLogWeight}
+              className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold shrink-0"
+            >
+              Log
+            </button>
           </div>
         </motion.div>
 

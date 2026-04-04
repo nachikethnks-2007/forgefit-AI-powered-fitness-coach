@@ -94,9 +94,9 @@ export function calorieTargetFromTdee(tdee: number, mode: Mode): number {
 }
 
 export function proteinGramsPerKg(mode: Mode): number {
-  if (mode === 'cut') return 1.2;
+  if (mode === 'cut') return 2.2;
   if (mode === 'bulk') return 1.8;
-  return 1.5;
+  return 2.0;
 }
 
 /**

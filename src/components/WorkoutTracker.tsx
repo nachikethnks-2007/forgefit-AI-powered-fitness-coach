@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Play, Check, Loader2, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { generateWorkoutPlan, callGroq, buildSystemPrompt } from '@/services/groqClient';
+import { generateWorkoutPlan, callGroqWithTools } from '@/services/groqClient';
 import type { WorkoutDay, LoggedExercise, LoggedSet } from '@/types/fitness';
 import { toast } from 'sonner';
 
@@ -68,13 +68,19 @@ export default function WorkoutTracker() {
 
   const askExerciseTip = async (exerciseName: string) => {
     if (!groqApiKey) { toast.error('Add API key'); return; }
+    if (!nutritionPlan) { toast.error('Complete onboarding first'); return; }
     setAskingAI(true);
     try {
-      const res = await callGroq([
-        { role: 'system', content: buildSystemPrompt(profile, nutritionPlan) },
-        { role: 'user', content: `Give me a quick form tip and alternative for "${exerciseName}" with ${profile.equipment} equipment. Be concise.` },
-      ]);
-      setAiTip(res);
+      const { content } = await callGroqWithTools(
+        [
+          {
+            role: 'user',
+            content: `Give me a quick form tip and alternative for "${exerciseName}" with ${profile.equipment} equipment. Be concise. Do not change the workout plan unless truly necessary.`,
+          },
+        ],
+        { extraSystemSuffix: 'Short answer only unless the user needs a plan change.' }
+      );
+      setAiTip(content);
     } catch { toast.error('AI error'); }
     setAskingAI(false);
   };
