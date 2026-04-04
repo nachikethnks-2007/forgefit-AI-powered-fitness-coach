@@ -43,7 +43,7 @@ export default function AICoach() {
         { role: 'user', content: input },
       ];
 
-      const response = await callGroq(groqApiKey, messages);
+      const response = await callGroq(messages);
       addChatMessage({ role: 'assistant', content: response, timestamp: Date.now() });
     } catch (err: any) {
       toast.error(err.message || 'Failed to get AI response');
