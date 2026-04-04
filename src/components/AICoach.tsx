@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, ArrowLeft, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '@/store/useAppStore';
 import { callGroq, buildSystemPrompt } from '@/services/groqClient';
 import { toast } from 'sonner';
@@ -93,7 +94,18 @@ export default function AICoach() {
             <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
               msg.role === 'user' ? 'gradient-primary text-primary-foreground' : 'glass-strong border-glow'
             }`}>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === 'user' ? (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              ) : (
+                <ReactMarkdown
+                  className="[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
+                  components={{
+                    strong: ({ children }) => <strong className="text-cyan-400 font-semibold">{children}</strong>,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              )}
             </div>
           </motion.div>
         ))}

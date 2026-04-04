@@ -70,7 +70,7 @@ export default function WorkoutTracker() {
     if (!groqApiKey) { toast.error('Add API key'); return; }
     setAskingAI(true);
     try {
-      const res = await callGroq(groqApiKey, [
+      const res = await callGroq([
         { role: 'system', content: buildSystemPrompt(profile, nutritionPlan) },
         { role: 'user', content: `Give me a quick form tip and alternative for "${exerciseName}" with ${profile.equipment} equipment. Be concise.` },
       ]);

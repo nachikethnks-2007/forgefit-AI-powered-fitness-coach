@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { calculateNutritionPlan } from '@/services/groqClient';
+import { buildCompleteNutritionPlan } from '@/utils/calculations';
 import type { UserProfile, Sex, Units, FitnessLevel, ActivityLevel, Equipment, Timeline, DietPref, Mode } from '@/types/fitness';
 import { toast } from 'sonner';
 
 const steps = ['Basic Info', 'Body Measurements', 'Fitness & Activity', 'Goal Details'];
 
 export default function Onboarding() {
-  const { setProfile, setNutritionPlan, setCurrentPage, groqApiKey } = useAppStore();
+  const { setProfile, setNutritionPlan, setCurrentPage } = useAppStore();
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '', age: '', sex: 'male' as Sex, units: 'metric' as Units,
     height: '', weight: '', neck: '', waist: '', hip: '',
@@ -37,22 +36,8 @@ export default function Onboarding() {
     };
 
     setProfile(profile);
-    setLoading(true);
-
-    try {
-      const plan = await calculateNutritionPlan(groqApiKey, profile);
-      setNutritionPlan(plan);
-      toast.success('Your personalized plan is ready!');
-    } catch {
-      // Use fallback (already handled in calculateNutritionPlan)
-      const { fallbackCalculation } = await import('@/services/groqClient').then(() => {
-        // fallback is called internally
-        return { fallbackCalculation: null };
-      });
-      toast.info('Plan calculated locally. Add your Groq API key in Settings for AI features.');
-    }
-
-    setLoading(false);
+    setNutritionPlan(buildCompleteNutritionPlan(profile));
+    toast.success('Your personalized plan is ready!');
     setCurrentPage('dashboard');
   };
 
@@ -253,10 +238,9 @@ export default function Onboarding() {
               ) : (
                 <button
                   onClick={handleSubmit}
-                  disabled={loading}
-                  className="gradient-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold flex items-center gap-2 disabled:opacity-40"
+                  className="gradient-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold flex items-center gap-2"
                 >
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Calculating...</> : <>Launch ForgeFit <ArrowRight className="w-4 h-4" /></>}
+                  Launch ForgeFit <ArrowRight className="w-4 h-4" />
                 </button>
               )}
             </div>

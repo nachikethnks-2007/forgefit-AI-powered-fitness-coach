@@ -1,9 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
-  AppState, UserProfile, NutritionPlan, FoodEntry,
-  WorkoutPlan, WorkoutSession, BodyMeasurement, ChatMessage, CompletedGoal
+  AppState,
+  UserProfile,
+  NutritionPlan,
+  FoodEntry,
+  WorkoutPlan,
+  WorkoutSession,
+  BodyMeasurement,
+  ChatMessage,
+  CompletedGoal,
 } from '@/types/fitness';
+import { recalculateFullNutritionPreservingMode } from '@/utils/calculations';
+import { syncForgefitLocalStorage } from '@/utils/forgefitLocalStorage';
+
+/** Fields that change BMR, TDEE, or Navy body fat (not mode or display units alone). */
+function metabolicInputsChanged(a: UserProfile, b: UserProfile): boolean {
+  return (
+    a.height !== b.height ||
+    a.weight !== b.weight ||
+    a.neck !== b.neck ||
+    a.waist !== b.waist ||
+    a.hip !== b.hip ||
+    a.age !== b.age ||
+    a.sex !== b.sex ||
+    a.activityLevel !== b.activityLevel
+  );
+}
 
 interface AppActions {
   setProfile: (profile: UserProfile) => void;
@@ -38,7 +61,19 @@ export const useAppStore = create<AppState & AppActions>()(
   persist(
     (set) => ({
       ...initialState,
-      setProfile: (profile) => set({ profile }),
+      setProfile: (profile) =>
+        set((s) => {
+          if (!s.nutritionPlan || !s.profile) {
+            return { profile };
+          }
+          if (!metabolicInputsChanged(s.profile, profile)) {
+            return { profile };
+          }
+          return {
+            profile,
+            nutritionPlan: recalculateFullNutritionPreservingMode(profile, s.nutritionPlan),
+          };
+        }),
       setNutritionPlan: (plan) => set({ nutritionPlan: plan }),
       addFoodEntry: (entry) => set((s) => ({ foodLog: [...s.foodLog, entry] })),
       removeFoodEntry: (id) => set((s) => ({ foodLog: s.foodLog.filter((f) => f.id !== id) })),
@@ -62,6 +97,13 @@ export const useAppStore = create<AppState & AppActions>()(
       setCurrentPage: (page) => set({ currentPage: page }),
       resetAll: () => set({ ...initialState }),
     }),
-    { name: 'forgefit-storage' }
+    {
+      name: 'forgefit-storage',
+      onRehydrateStorage: () => (state) => {
+        if (state) syncForgefitLocalStorage(state);
+      },
+    }
   )
 );
+
+useAppStore.subscribe((state) => syncForgefitLocalStorage(state));

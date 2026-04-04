@@ -3,34 +3,26 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { Mode, ActivityLevel } from '@/types/fitness';
-import { calculateNutritionPlan } from '@/services/groqClient';
+import { recalculateNutritionFromSavedTdee } from '@/utils/calculations';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const store = useAppStore();
-  const { profile, groqApiKey, setGroqApiKey, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
+  const { profile, nutritionPlan, groqApiKey, setGroqApiKey, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
   const [apiKey, setApiKey] = useState(groqApiKey);
   const [showReset, setShowReset] = useState(false);
-  const [recalculating, setRecalculating] = useState(false);
 
   const handleSaveKey = () => {
     setGroqApiKey(apiKey);
     toast.success('API key saved');
   };
 
-  const handleModeChange = async (mode: Mode) => {
-    if (!profile) return;
+  const handleModeChange = (mode: Mode) => {
+    if (!profile || !nutritionPlan) return;
     const updated = { ...profile, mode };
     setProfile(updated);
-    setRecalculating(true);
-    try {
-      const plan = await calculateNutritionPlan(groqApiKey, updated);
-      setNutritionPlan(plan);
-      toast.success('Plan recalculated for ' + mode + ' mode');
-    } catch {
-      toast.info('Recalculated locally');
-    }
-    setRecalculating(false);
+    setNutritionPlan(recalculateNutritionFromSavedTdee(nutritionPlan, updated));
+    toast.success('Targets updated for ' + mode + ' mode');
   };
 
   const handleReset = () => {
@@ -69,7 +61,7 @@ export default function SettingsPage() {
             <h2 className="font-heading font-bold text-lg mb-3">Active Mode</h2>
             <div className="flex gap-2">
               {(['cut', 'bulk', 'recomposition'] as Mode[]).map((m) => (
-                <button key={m} onClick={() => handleModeChange(m)} disabled={recalculating}
+                <button key={m} onClick={() => handleModeChange(m)}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     profile.mode === m ? 'gradient-primary text-primary-foreground glow-primary-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                   }`}>
