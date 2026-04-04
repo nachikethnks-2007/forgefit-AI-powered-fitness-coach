@@ -6,7 +6,7 @@ import { callGroq, buildSystemPrompt } from '@/services/groqClient';
 import { toast } from 'sonner';
 
 export default function WeeklyCheckIn() {
-  const { profile, nutritionPlan, foodLog, workoutSessions, measurements, groqApiKey } = useAppStore();
+  const { profile, nutritionPlan, foodLog, workoutSessions, measurements } = useAppStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [review, setReview] = useState<string | null>(null);
@@ -22,7 +22,9 @@ export default function WeeklyCheckIn() {
   const weekMeasurements = measurements.filter(m => new Date(m.date) >= weekAgo);
 
   const generateReview = async () => {
-    if (!groqApiKey) {
+    const apiKey = localStorage.getItem("groqApiKey");
+
+    if (!apiKey) {
       toast.error('Add your Groq API key in Settings first');
       return;
     }
@@ -32,10 +34,13 @@ export default function WeeklyCheckIn() {
 
     const totalCalories = weekFood.reduce((a, f) => a + f.calories, 0);
     const avgCalories = weekFood.length > 0 ? Math.round(totalCalories / 7) : 0;
+
     const totalProtein = weekFood.reduce((a, f) => a + f.protein, 0);
     const avgProtein = weekFood.length > 0 ? Math.round(totalProtein / 7) : 0;
+
     const totalVolume = weekWorkouts.reduce((acc, s) =>
-      acc + s.exercises.reduce((a, ex) => a + ex.sets.reduce((b, set) => b + set.reps * set.weight, 0), 0)
+      acc + s.exercises.reduce((a, ex) =>
+        a + ex.sets.reduce((b, set) => b + set.reps * set.weight, 0), 0)
     , 0);
 
     const latestWeight = weekMeasurements.length > 0
@@ -53,23 +58,33 @@ WEEKLY CHECK-IN DATA (last 7 days):
 ${profile.targetWeight ? `- Target weight: ${profile.targetWeight} ${profile.units === 'metric' ? 'kg' : 'lbs'}` : ''}
 
 Generate a comprehensive weekly review with these sections:
-1. **Overview** — Brief summary of the week
-2. **What Went Well** — Highlight positives
-3. **Areas to Improve** — Constructive feedback
-4. **Adjusted Targets** — Any recommended changes to calories/macros/training
-5. **Focus for Next Week** — Specific actionable goals
+1. Overview
+2. What Went Well
+3. Areas to Improve
+4. Adjusted Targets
+5. Focus for Next Week
 
-Be encouraging but honest. Use the data to make specific observations.`;
+Be encouraging but honest and use the data above.
+`;
 
     try {
-      const systemPrompt = buildSystemPrompt(profile, nutritionPlan, 'You are doing a weekly performance review.');
-      const response = await callGroq(groqApiKey, [
+      const systemPrompt = buildSystemPrompt(
+        profile,
+        nutritionPlan,
+        'You are doing a weekly performance review.'
+      );
+
+      const messages = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: context },
-      ]);
+      ];
+
+      // ✅ FIXED HERE
+      const response = await callGroq(messages);
+
       setReview(response);
-    } catch (err) {
-      toast.error('Failed to generate review. Check your API key.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate review');
       setOpen(false);
     } finally {
       setLoading(false);
@@ -78,7 +93,7 @@ Be encouraging but honest. Use the data to make specific observations.`;
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Button */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -104,10 +119,13 @@ Be encouraging but honest. Use the data to make specific observations.`;
         <Sparkles className="w-5 h-5 text-primary" />
       </motion.button>
 
-      {/* Review modal */}
+      {/* Modal */}
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-12 overflow-y-auto" onClick={() => !loading && setOpen(false)}>
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-12 overflow-y-auto"
+            onClick={() => !loading && setOpen(false)}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -115,19 +133,26 @@ Be encouraging but honest. Use the data to make specific observations.`;
               className="glass-strong rounded-2xl p-6 max-w-lg w-full border-glow relative"
               onClick={e => e.stopPropagation()}
             >
-              <button onClick={() => setOpen(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              >
                 <X className="w-5 h-5" />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles className="w-6 h-6 text-primary" />
-                <h2 className="font-heading font-bold text-xl gradient-text">Weekly Review</h2>
+                <h2 className="font-heading font-bold text-xl gradient-text">
+                  Weekly Review
+                </h2>
               </div>
 
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <p className="text-sm text-muted-foreground animate-pulse">Analyzing your week...</p>
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Analyzing your week...
+                  </p>
                 </div>
               ) : review ? (
                 <div className="prose prose-sm prose-invert max-w-none text-foreground text-sm leading-relaxed whitespace-pre-wrap">
