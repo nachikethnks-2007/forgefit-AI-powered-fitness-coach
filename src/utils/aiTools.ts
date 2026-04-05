@@ -202,3 +202,32 @@ function changeSplit(args: any): ToolExecutionResult {
 
   return commit({ weeklyPlan, generatedAt: Date.now() }, 'Workout split changed');
 }
+
+export function applyNutritionTargetsUpdate(partial: {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  reason: string;
+}) {
+  const { nutritionPlan, setNutritionPlan } = useAppStore.getState();
+
+  if (!nutritionPlan) {
+    return { ok: false, summary: 'No nutrition plan found' };
+  }
+
+  const updated = {
+    ...nutritionPlan,
+    dailyCalories: partial.calories,
+    protein: partial.protein,
+    carbs: partial.carbs,
+    fats: partial.fats,
+  };
+
+  setNutritionPlan(updated);
+
+  return {
+    ok: true,
+    summary: `Nutrition updated: ${partial.calories} kcal`,
+  };
+}
