@@ -45,7 +45,7 @@ export async function callGroq(
       model: TOOL_MODEL,
       messages,
       temperature: 0.7,
-      max_tokens: 600,
+      max_tokens: 2000,
     }),
   });
 
@@ -141,7 +141,7 @@ export async function callGroqWithTools(
         tools: FORGEFIT_GROQ_TOOLS,
         tool_choice: 'auto',
         temperature: 0.5,
-        max_tokens: 600,
+        max_tokens: 2000,
       }),
     });
 
