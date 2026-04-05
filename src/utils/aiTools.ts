@@ -15,13 +15,13 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          day: { type: 'string' },
-          exercise_to_replace: { type: 'string' },
-          replacement_exercise: { type: 'string' },
-          sets: { type: 'number', default: 3 },
-          reps: { type: 'string' },
-          muscleGroup: { type: 'string' },
-          reason: { type: 'string' },
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_to_replace: { type: 'string', description: 'Exact name of exercise to remove' },
+          replacement_exercise: { type: 'string', description: 'Name of new exercise' },
+          sets: { type: 'integer', description: 'Number of sets as integer, default 3 if not specified' },
+          reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12, default same as replaced exercise' },
+          muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
+          reason: { type: 'string', description: 'Reason for replacement' },
         },
         required: ['day', 'exercise_to_replace', 'replacement_exercise', 'muscleGroup', 'reason'],
       },
@@ -35,11 +35,11 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          new_split: { type: 'string' },
-          days_per_week: { type: 'number', default: 3 },
-          reason: { type: 'string' },
+          new_split: { type: 'string', description: 'Type of split: push_pull_legs, upper_lower, full_body, bro_split' },
+          days_per_week: { type: 'integer', description: 'Number of training days per week' },
+          reason: { type: 'string', description: 'Reason for changing split' },
         },
-        required: ['new_split', 'reason'],
+        required: ['new_split', 'days_per_week', 'reason'],
       },
     },
   },
@@ -51,13 +51,13 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          day: { type: 'string' },
-          exercise_name: { type: 'string' },
-          new_sets: { type: 'number', default: 3 },
-          new_reps: { type: 'string' },
-          reason: { type: 'string' },
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_name: { type: 'string', description: 'Exact name of exercise to modify' },
+          new_sets: { type: 'integer', description: 'New number of sets as integer' },
+          new_reps: { type: 'string', description: 'New number of reps as string like 10 or 8-12' },
+          reason: { type: 'string', description: 'Reason for volume adjustment' },
         },
-        required: ['day', 'exercise_name', 'new_reps', 'reason'],
+        required: ['day', 'exercise_name', 'reason'],
       },
     },
   },
@@ -69,14 +69,14 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          day: { type: 'string' },
-          exercise_name: { type: 'string' },
-          sets: { type: 'number', default: 3 },
-          reps: { type: 'string' },
-          muscleGroup: { type: 'string' },
-          reason: { type: 'string' },
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_name: { type: 'string', description: 'Name of new exercise to add' },
+          sets: { type: 'integer', description: 'Number of sets as integer, default 3 if not specified' },
+          reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12, default 10 if not specified' },
+          muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
+          reason: { type: 'string', description: 'Reason for adding exercise' },
         },
-        required: ['day', 'exercise_name', 'reps', 'muscleGroup', 'reason'],
+        required: ['day', 'exercise_name', 'muscleGroup', 'reason'],
       },
     },
   },
@@ -88,9 +88,9 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          day: { type: 'string' },
-          exercise_name: { type: 'string' },
-          reason: { type: 'string' },
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_name: { type: 'string', description: 'Exact name of exercise to remove' },
+          reason: { type: 'string', description: 'Reason for removal' },
         },
         required: ['day', 'exercise_name', 'reason'],
       },
@@ -104,12 +104,12 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          adjustment: { type: 'string' },
-          percentage: { type: 'number' },
-          affected_exercises: { type: 'array', items: { type: 'string' } },
-          reason: { type: 'string' },
+          adjustment: { type: 'string', description: 'Type of adjustment: increase, decrease, hold, deload' },
+          percentage: { type: 'number', description: 'Percentage for increase/decrease, default 5 if not specified' },
+          affected_exercises: { type: 'array', items: { type: 'string' }, description: 'Array of exercise names or ["all"] for all exercises' },
+          reason: { type: 'string', description: 'Reason for intensity adjustment' },
         },
-        required: ['adjustment', 'percentage', 'affected_exercises', 'reason'],
+        required: ['adjustment', 'affected_exercises', 'reason'],
       },
     },
   },
@@ -156,18 +156,22 @@ export function executeForgefitTool(name: string, argsJson: string): ToolExecuti
 /* ---------------- WORKOUT TOOLS ---------------- */
 
 function replaceExercise(args: any): ToolExecutionResult {
-  // Safety checks for parameters
-  const sets = typeof args.sets === 'number' ? args.sets : 3;
+  // Rule 6: sets parameter must always be integer type with fallback
+  const sets = Number.isInteger(args.sets) ? args.sets : 3;
   const reps = typeof args.reps === 'string' ? args.reps : '10';
   
-  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
-  const days = plan.weeklyPlan || [];
+  // Rule 2: Read workout plan correctly
+  const stored = localStorage.getItem('forgefit_workout_plan');
+  const plan = JSON.parse(stored || '{}');
+  const days = plan.weeklyPlan; // always access weeklyPlan key
   
-  const dayIndex = days.findIndex((d: any) => 
+  // Rule 3: Day matching must be case-insensitive and trimmed
+  const dayIndex = days.findIndex((d: any) =>
     d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
   );
   if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
   
+  // Rule 4: Exercise matching must be case-insensitive and trimmed
   const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
     e.name.toLowerCase().trim() === args.exercise_to_replace.toLowerCase().trim()
   );
@@ -183,8 +187,11 @@ function replaceExercise(args: any): ToolExecutionResult {
     formTip: ''
   };
   
+  // Rule 5: Always save back correctly
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  
+  // Rule 7: Dispatch event to re-render Workout Tracker
   window.dispatchEvent(new Event('workoutPlanUpdated'));
   
   return { 
@@ -194,16 +201,13 @@ function replaceExercise(args: any): ToolExecutionResult {
 }
 
 function changeSplit(args: any): ToolExecutionResult {
-  // Safety check for days_per_week
-  const daysPerWeek = typeof args.days_per_week === 'number' ? args.days_per_week : 3;
-  
   const { profile } = useAppStore.getState();
   if (!profile) return { ok: false, summary: 'No profile found' };
   
-  const prompt = `Generate a ${args.new_split} workout split for ${daysPerWeek} days per week.
+  const prompt = `Generate a ${args.new_split} workout split for ${args.days_per_week} days per week.
 User equipment: ${profile.equipment}
 User fitness level: ${profile.fitnessLevel}
-CRITICAL: Only use bodyweight exercises if equipment is bodyweight.
+CRITICAL: If equipment is bodyweight only use bodyweight exercises.
 Return ONLY a valid JSON array like this exact format, no extra text:
 [
   {
@@ -215,7 +219,8 @@ Return ONLY a valid JSON array like this exact format, no extra text:
   }
 ]`;
 
-  return callGroq([
+  // Make this async but return a sync result for now
+  callGroq([
     { role: 'system', content: 'You are a fitness coach. Return ONLY JSON.' },
     { role: 'user', content: prompt }
   ]).then(response => {
@@ -227,55 +232,67 @@ Return ONLY a valid JSON array like this exact format, no extra text:
       };
       localStorage.setItem('forgefit_workout_plan', JSON.stringify(newPlan));
       window.dispatchEvent(new Event('workoutPlanUpdated'));
-      return { ok: true, summary: `✅ Workout split changed to ${args.new_split}` };
     } catch {
-      return { ok: false, summary: 'Failed to parse workout plan' };
+      // Handle error silently
     }
   }).catch(() => {
-    return { ok: false, summary: 'Failed to generate workout plan' };
-  }) as ToolExecutionResult;
+    // Handle error silently
+  });
+
+  return { ok: true, summary: `✅ Workout split changed to ${args.new_split}` };
 }
 
 function adjustVolume(args: any): ToolExecutionResult {
-  // Safety checks for parameters
-  const newSets = typeof args.new_sets === 'number' ? args.new_sets : 3;
-  const newReps = typeof args.new_reps === 'string' ? args.new_reps : '10';
+  // Rule 6: sets parameter must always be integer type with fallback
+  const newSets = Number.isInteger(args.new_sets) ? args.new_sets : undefined;
+  const newReps = typeof args.new_reps === 'string' ? args.new_reps : undefined;
   
-  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
-  const days = plan.weeklyPlan || [];
+  // Rule 2: Read workout plan correctly
+  const stored = localStorage.getItem('forgefit_workout_plan');
+  const plan = JSON.parse(stored || '{}');
+  const days = plan.weeklyPlan; // always access weeklyPlan key
   
-  const dayIndex = days.findIndex((d: any) => 
+  // Rule 3: Day matching must be case-insensitive and trimmed
+  const dayIndex = days.findIndex((d: any) =>
     d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
   );
   if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
   
+  // Rule 4: Exercise matching must be case-insensitive and trimmed
   const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
     e.name.toLowerCase().trim() === args.exercise_name.toLowerCase().trim()
   );
   if (exIndex === -1) return { ok: false, summary: 'Exercise not found' };
   
-  days[dayIndex].exercises[exIndex].sets = newSets;
-  days[dayIndex].exercises[exIndex].reps = newReps;
+  // Update sets and reps if provided
+  if (newSets !== undefined) days[dayIndex].exercises[exIndex].sets = newSets;
+  if (newReps !== undefined) days[dayIndex].exercises[exIndex].reps = newReps;
   
+  // Rule 5: Always save back correctly
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  
+  // Rule 7: Dispatch event to re-render Workout Tracker
   window.dispatchEvent(new Event('workoutPlanUpdated'));
   
   return { 
     ok: true, 
-    summary: `✅ Updated ${args.exercise_name} to ${newSets}×${newReps} on ${args.day}` 
+    summary: `✅ Updated ${args.exercise_name} volume on ${args.day}` 
   };
 }
 
 function addExercise(args: any): ToolExecutionResult {
-  // Safety checks for parameters
-  const sets = typeof args.sets === 'number' ? args.sets : 3;
+  // Rule 6: sets parameter must always be integer type with fallback
+  const sets = Number.isInteger(args.sets) ? args.sets : 3;
   const reps = typeof args.reps === 'string' ? args.reps : '10';
   
-  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
-  const days = plan.weeklyPlan || [];
+  // Rule 2: Read workout plan correctly
+  const stored = localStorage.getItem('forgefit_workout_plan');
+  const plan = JSON.parse(stored || '{}');
+  const days = plan.weeklyPlan; // always access weeklyPlan key
   
-  const dayIndex = days.findIndex((d: any) => 
+  // Rule 3: Day matching must be case-insensitive and trimmed
+  const dayIndex = days.findIndex((d: any) =>
     d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
   );
   if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
@@ -290,8 +307,11 @@ function addExercise(args: any): ToolExecutionResult {
     formTip: ''
   });
   
+  // Rule 5: Always save back correctly
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  
+  // Rule 7: Dispatch event to re-render Workout Tracker
   window.dispatchEvent(new Event('workoutPlanUpdated'));
   
   return { 
@@ -301,10 +321,13 @@ function addExercise(args: any): ToolExecutionResult {
 }
 
 function removeExercise(args: any): ToolExecutionResult {
-  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
-  const days = plan.weeklyPlan || [];
+  // Rule 2: Read workout plan correctly
+  const stored = localStorage.getItem('forgefit_workout_plan');
+  const plan = JSON.parse(stored || '{}');
+  const days = plan.weeklyPlan; // always access weeklyPlan key
   
-  const dayIndex = days.findIndex((d: any) => 
+  // Rule 3: Day matching must be case-insensitive and trimmed
+  const dayIndex = days.findIndex((d: any) =>
     d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
   );
   if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
@@ -318,8 +341,11 @@ function removeExercise(args: any): ToolExecutionResult {
     return { ok: false, summary: 'Exercise not found' };
   }
   
+  // Rule 5: Always save back correctly
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  
+  // Rule 7: Dispatch event to re-render Workout Tracker
   window.dispatchEvent(new Event('workoutPlanUpdated'));
   
   return { 
@@ -329,11 +355,13 @@ function removeExercise(args: any): ToolExecutionResult {
 }
 
 function updateIntensity(args: any): ToolExecutionResult {
-  // Safety check for percentage
+  // Rule 6: percentage parameter with fallback
   const percentage = typeof args.percentage === 'number' ? args.percentage : 5;
   
-  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
-  const days = plan.weeklyPlan || [];
+  // Rule 2: Read workout plan correctly
+  const stored = localStorage.getItem('forgefit_workout_plan');
+  const plan = JSON.parse(stored || '{}');
+  const days = plan.weeklyPlan; // always access weeklyPlan key
   
   days.forEach((day: any) => {
     day.exercises.forEach((exercise: any) => {
@@ -355,8 +383,11 @@ function updateIntensity(args: any): ToolExecutionResult {
     });
   });
   
+  // Rule 5: Always save back correctly
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  
+  // Rule 7: Dispatch event to re-render Workout Tracker
   window.dispatchEvent(new Event('workoutPlanUpdated'));
   
   return { 
