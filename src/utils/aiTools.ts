@@ -18,12 +18,12 @@ export const FORGEFIT_GROQ_TOOLS = [
           day: { type: 'string' },
           exercise_to_replace: { type: 'string' },
           replacement_exercise: { type: 'string' },
-          sets: { type: 'number' },
+          sets: { type: 'number', default: 3 },
           reps: { type: 'string' },
           muscleGroup: { type: 'string' },
           reason: { type: 'string' },
         },
-        required: ['day', 'exercise_to_replace', 'replacement_exercise', 'sets', 'reps', 'muscleGroup', 'reason'],
+        required: ['day', 'exercise_to_replace', 'replacement_exercise', 'muscleGroup', 'reason'],
       },
     },
   },
@@ -36,10 +36,10 @@ export const FORGEFIT_GROQ_TOOLS = [
         type: 'object',
         properties: {
           new_split: { type: 'string' },
-          days_per_week: { type: 'number' },
+          days_per_week: { type: 'number', default: 3 },
           reason: { type: 'string' },
         },
-        required: ['new_split', 'days_per_week', 'reason'],
+        required: ['new_split', 'reason'],
       },
     },
   },
@@ -53,11 +53,11 @@ export const FORGEFIT_GROQ_TOOLS = [
         properties: {
           day: { type: 'string' },
           exercise_name: { type: 'string' },
-          new_sets: { type: 'number' },
+          new_sets: { type: 'number', default: 3 },
           new_reps: { type: 'string' },
           reason: { type: 'string' },
         },
-        required: ['day', 'exercise_name', 'new_sets', 'new_reps', 'reason'],
+        required: ['day', 'exercise_name', 'new_reps', 'reason'],
       },
     },
   },
@@ -71,12 +71,12 @@ export const FORGEFIT_GROQ_TOOLS = [
         properties: {
           day: { type: 'string' },
           exercise_name: { type: 'string' },
-          sets: { type: 'number' },
+          sets: { type: 'number', default: 3 },
           reps: { type: 'string' },
           muscleGroup: { type: 'string' },
           reason: { type: 'string' },
         },
-        required: ['day', 'exercise_name', 'sets', 'reps', 'muscleGroup', 'reason'],
+        required: ['day', 'exercise_name', 'reps', 'muscleGroup', 'reason'],
       },
     },
   },
@@ -156,6 +156,10 @@ export function executeForgefitTool(name: string, argsJson: string): ToolExecuti
 /* ---------------- WORKOUT TOOLS ---------------- */
 
 function replaceExercise(args: any): ToolExecutionResult {
+  // Safety checks for parameters
+  const sets = typeof args.sets === 'number' ? args.sets : 3;
+  const reps = typeof args.reps === 'string' ? args.reps : '10';
+  
   const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
   const days = plan.weeklyPlan || [];
   
@@ -171,8 +175,8 @@ function replaceExercise(args: any): ToolExecutionResult {
   
   days[dayIndex].exercises[exIndex] = {
     name: args.replacement_exercise,
-    sets: args.sets,
-    reps: args.reps,
+    sets: sets,
+    reps: reps,
     targetWeight: 0,
     muscleGroup: args.muscleGroup,
     restSeconds: 90,
@@ -190,10 +194,13 @@ function replaceExercise(args: any): ToolExecutionResult {
 }
 
 function changeSplit(args: any): ToolExecutionResult {
+  // Safety check for days_per_week
+  const daysPerWeek = typeof args.days_per_week === 'number' ? args.days_per_week : 3;
+  
   const { profile } = useAppStore.getState();
   if (!profile) return { ok: false, summary: 'No profile found' };
   
-  const prompt = `Generate a ${args.new_split} workout split for ${args.days_per_week} days per week.
+  const prompt = `Generate a ${args.new_split} workout split for ${daysPerWeek} days per week.
 User equipment: ${profile.equipment}
 User fitness level: ${profile.fitnessLevel}
 CRITICAL: Only use bodyweight exercises if equipment is bodyweight.
@@ -230,6 +237,10 @@ Return ONLY a valid JSON array like this exact format, no extra text:
 }
 
 function adjustVolume(args: any): ToolExecutionResult {
+  // Safety checks for parameters
+  const newSets = typeof args.new_sets === 'number' ? args.new_sets : 3;
+  const newReps = typeof args.new_reps === 'string' ? args.new_reps : '10';
+  
   const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
   const days = plan.weeklyPlan || [];
   
@@ -243,8 +254,8 @@ function adjustVolume(args: any): ToolExecutionResult {
   );
   if (exIndex === -1) return { ok: false, summary: 'Exercise not found' };
   
-  days[dayIndex].exercises[exIndex].sets = args.new_sets;
-  days[dayIndex].exercises[exIndex].reps = args.new_reps;
+  days[dayIndex].exercises[exIndex].sets = newSets;
+  days[dayIndex].exercises[exIndex].reps = newReps;
   
   plan.weeklyPlan = days;
   localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
@@ -252,11 +263,15 @@ function adjustVolume(args: any): ToolExecutionResult {
   
   return { 
     ok: true, 
-    summary: `✅ Updated ${args.exercise_name} to ${args.new_sets}×${args.new_reps} on ${args.day}` 
+    summary: `✅ Updated ${args.exercise_name} to ${newSets}×${newReps} on ${args.day}` 
   };
 }
 
 function addExercise(args: any): ToolExecutionResult {
+  // Safety checks for parameters
+  const sets = typeof args.sets === 'number' ? args.sets : 3;
+  const reps = typeof args.reps === 'string' ? args.reps : '10';
+  
   const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
   const days = plan.weeklyPlan || [];
   
@@ -267,8 +282,8 @@ function addExercise(args: any): ToolExecutionResult {
   
   days[dayIndex].exercises.push({
     name: args.exercise_name,
-    sets: args.sets,
-    reps: args.reps,
+    sets: sets,
+    reps: reps,
     targetWeight: 0,
     muscleGroup: args.muscleGroup,
     restSeconds: 90,
@@ -314,6 +329,9 @@ function removeExercise(args: any): ToolExecutionResult {
 }
 
 function updateIntensity(args: any): ToolExecutionResult {
+  // Safety check for percentage
+  const percentage = typeof args.percentage === 'number' ? args.percentage : 5;
+  
   const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
   const days = plan.weeklyPlan || [];
   
@@ -326,9 +344,9 @@ function updateIntensity(args: any): ToolExecutionResult {
       
       if (shouldUpdate) {
         if (args.adjustment === 'increase') {
-          exercise.targetWeight = exercise.targetWeight * (1 + args.percentage / 100);
+          exercise.targetWeight = exercise.targetWeight * (1 + percentage / 100);
         } else if (args.adjustment === 'decrease') {
-          exercise.targetWeight = exercise.targetWeight * (1 - args.percentage / 100);
+          exercise.targetWeight = exercise.targetWeight * (1 - percentage / 100);
         } else if (args.adjustment === 'deload') {
           exercise.targetWeight = exercise.targetWeight * 0.8;
         }
@@ -343,7 +361,7 @@ function updateIntensity(args: any): ToolExecutionResult {
   
   return { 
     ok: true, 
-    summary: `✅ Workout intensity updated: ${args.adjustment} ${args.percentage}%` 
+    summary: `✅ Workout intensity updated: ${args.adjustment} ${percentage}%` 
   };
 }
 
