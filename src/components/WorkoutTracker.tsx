@@ -16,8 +16,9 @@ function normalizeGeneratedPlan(raw: { weeklyPlan?: unknown[] }): WorkoutPlan {
       const out: Exercise = {
         name: String(e.name ?? ''),
         sets: Number(e.sets) || 0,
-        reps: Number(e.reps) || 0,
-        weight: e.weight != null && e.weight !== '' ? Number(e.weight) : undefined,
+        reps: String(e.reps ?? '10'),
+        targetWeight: Number(e.targetWeight ?? e.weight) || 0,
+        muscleGroup: String(e.muscleGroup ?? e.muscle_group ?? 'general'),
         restSeconds: Number(e.restSeconds ?? e.rest_seconds) || 90,
         formTip: String(e.formTip ?? e.form_tip ?? ''),
       };
@@ -27,7 +28,7 @@ function normalizeGeneratedPlan(raw: { weeklyPlan?: unknown[] }): WorkoutPlan {
     });
     return {
       day: String(day.day ?? ''),
-      label: String(day.label ?? ''),
+      focus: String(day.focus ?? day.label ?? ''),
       exercises,
     };
   });
@@ -65,7 +66,7 @@ export default function WorkoutTracker() {
     setLogging(true);
     const initial: Record<string, LoggedSet[]> = {};
     day.exercises.forEach((e) => {
-      initial[e.name] = Array.from({ length: e.sets }, () => ({ reps: e.reps, weight: e.weight || 0 }));
+      initial[e.name] = Array.from({ length: e.sets }, () => ({ reps: Number(e.reps), weight: e.targetWeight }));
     });
     setLogData(initial);
   };
@@ -85,7 +86,7 @@ export default function WorkoutTracker() {
     addWorkoutSession({
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      dayLabel: selectedDay.label,
+      dayLabel: selectedDay.focus,
       exercises,
       timestamp: Date.now(),
     });
@@ -140,7 +141,7 @@ export default function WorkoutTracker() {
           /* Logging View */
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-xl">{selectedDay.label}</h2>
+              <h2 className="font-heading font-bold text-xl">{selectedDay.focus}</h2>
               <button onClick={() => setLogging(false)} className="text-sm text-muted-foreground">Cancel</button>
             </div>
             {selectedDay.exercises.map((ex) => (
@@ -188,7 +189,7 @@ export default function WorkoutTracker() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="font-heading font-bold">{day.day}</p>
-                    <p className="text-primary text-sm">{day.label}</p>
+                    <p className="text-primary text-sm">{day.focus}</p>
                   </div>
                   <button onClick={() => startLogging(day)} className="gradient-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1">
                     <Play className="w-3 h-3" /> Start
@@ -197,7 +198,7 @@ export default function WorkoutTracker() {
                 <div className="space-y-1">
                   {day.exercises.map((ex) => (
                     <p key={ex.name} className="text-sm text-muted-foreground">
-                      {ex.name} — {ex.sets}×{ex.reps} {ex.weight ? `@ ${ex.weight}${profile.units === 'metric' ? 'kg' : 'lbs'}` : ''}
+                      {ex.name} — {ex.sets}×{ex.reps} {ex.targetWeight ? `@ ${ex.targetWeight}${profile.units === 'metric' ? 'kg' : 'lbs'}` : ''}
                     </p>
                   ))}
                 </div>

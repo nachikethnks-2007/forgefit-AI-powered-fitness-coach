@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,19 +6,25 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { migrateWorkoutPlanData } from "@/utils/forgefitLocalStorage";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  // ✅ ONLY for controlling app
+  // ONLY for controlling app
   const [apiKey] = useState(
     () => localStorage.getItem("groqApiKey") || ""
   );
 
-  // ✅ ONLY for typing input
+  // ONLY for typing input
   const [tempKey, setTempKey] = useState("");
 
-  // 🔥 API KEY SCREEN
+  // MIGRATION: Run data migration on app load
+  useEffect(() => {
+    migrateWorkoutPlanData();
+  }, []);
+
+  // API KEY SCREEN
   if (!apiKey) {
     return (
       <div style={{

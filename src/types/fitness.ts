@@ -70,17 +70,18 @@ export interface ForgefitExerciseDbCache {
 export interface Exercise {
   name: string;
   sets: number;
-  reps: number;
-  weight?: number;
-  restSeconds: number;
-  formTip: string;
+  reps: string;
+  targetWeight: number;
+  muscleGroup: string;
+  restSeconds?: number;
+  formTip?: string;
   /** wger exerciseinfo id when sourced from ForgeFit exercise DB */
   wgerExerciseId?: number;
 }
 
 export interface WorkoutDay {
   day: string;
-  label: string;
+  focus: string;
   exercises: Exercise[];
 }
 

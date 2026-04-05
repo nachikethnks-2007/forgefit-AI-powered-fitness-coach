@@ -89,17 +89,19 @@ function parseArgs(raw: string): Record<string, unknown> {
 function buildExercise(
   name: string,
   sets: number,
-  reps: number,
-  restSeconds: number,
-  weight?: number,
+  reps: string,
+  targetWeight: number,
+  muscleGroup: string,
+  restSeconds?: number,
   formTip?: string
 ): Exercise {
   return {
     name,
     sets,
     reps,
-    weight,
-    restSeconds,
+    targetWeight,
+    muscleGroup,
+    restSeconds: restSeconds || 90,
     formTip: formTip || 'Focus on form',
   };
 }
@@ -116,7 +118,7 @@ function cloneWorkoutPlan(p: WorkoutPlan): WorkoutPlan {
 
 function findDay(plan: WorkoutPlan, label: string): WorkoutDay | null {
   const normalizedLabel = label.trim().toLowerCase();
-  return plan.weeklyPlan.find(d => d.label.trim().toLowerCase() === normalizedLabel) || null;
+  return plan.weeklyPlan.find(d => d.focus.trim().toLowerCase() === normalizedLabel) || null;
 }
 
 function commit(plan: WorkoutPlan, summary: string): ToolExecutionResult {
@@ -154,9 +156,9 @@ function updateIntensity(args: any): ToolExecutionResult {
   next.weeklyPlan.forEach(day => {
     day.exercises.forEach(ex => {
       if (args.adjustment === 'increase') {
-        ex.weight = (ex.weight || 0) * 1.05;
+        ex.targetWeight = ex.targetWeight * 1.05;
       } else if (args.adjustment === 'decrease') {
-        ex.weight = (ex.weight || 0) * 0.95;
+        ex.targetWeight = ex.targetWeight * 0.95;
       }
     });
   });
@@ -180,9 +182,10 @@ function replaceExercise(args: any): ToolExecutionResult {
   day.exercises[index] = buildExercise(
     args.exercise_name,
     args.sets,
-    args.reps,
+    args.reps.toString(),
+    args.weight || 0,
+    args.muscle_group || 'general',
     args.rest_seconds,
-    args.weight,
     args.form_tip
   );
 
@@ -217,14 +220,15 @@ function changeSplit(args: any): ToolExecutionResult {
 
   const weeklyPlan: WorkoutDay[] = parsed.map((d: any) => ({
     day: d.day,
-    label: d.label,
+    focus: d.focus || d.label || 'Workout',
     exercises: (d.exercises || []).map((e: any) =>
       buildExercise(
         e.name || 'Exercise',
         e.sets || 3,
-        e.reps || 10,
+        e.reps?.toString() || '10',
+        e.targetWeight || e.weight || 0,
+        e.muscleGroup || e.muscle_group || 'general',
         e.rest_seconds || 60,
-        e.weight,
         e.form_tip
       )
     ),

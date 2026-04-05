@@ -125,3 +125,42 @@ export function readForgefitAlertsFromLS(): ForgefitAlert[] {
     return [];
   }
 }
+
+/* ---------------- DATA MIGRATION ---------------- */
+
+export function migrateWorkoutPlanData(): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const raw = localStorage.getItem(FORGEFIT_WORKOUT_PLAN_KEY);
+    if (!raw) return;
+    
+    const parsed = JSON.parse(raw) as unknown;
+    
+    // Check if data is already in correct format (array with proper exercise structure)
+    if (Array.isArray(parsed)) {
+      const isValidFormat = parsed.every((day: any) => 
+        day.day && 
+        day.focus && 
+        Array.isArray(day.exercises) &&
+        day.exercises.every((ex: any) => 
+          ex.name && 
+          ex.sets !== undefined && 
+          ex.reps !== undefined && 
+          ex.targetWeight !== undefined && 
+          ex.muscleGroup
+        )
+      );
+      
+      if (isValidFormat) return; // Already in correct format
+    }
+    
+    // Data is in old format - clear it and let user regenerate
+    console.log('MIGRATION: Detected old workout plan format, clearing for regeneration');
+    localStorage.removeItem(FORGEFIT_WORKOUT_PLAN_KEY);
+    
+  } catch (error) {
+    console.log('MIGRATION: Error reading workout plan, clearing for regeneration');
+    localStorage.removeItem(FORGEFIT_WORKOUT_PLAN_KEY);
+  }
+}

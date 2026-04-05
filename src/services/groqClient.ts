@@ -92,6 +92,9 @@ export function buildForgeFitAISystemPrompt(extra = ''): string {
 
   if (!profile || !nutritionPlan) return 'User data missing.';
 
+  const bodyweightConstraint = profile.equipment === 'bodyweight' ? `
+CRITICAL: User equipment preference is ${profile.equipment}. If equipment is bodyweight, you must ONLY generate bodyweight exercises. Never suggest any exercise requiring gym equipment, barbells, dumbbells, cables or machines. Bodyweight exercises only include: Push-up, Knee Push-up, Wall Push-up, Diamond Push-up, Pike Push-up, Decline Push-up, Pull-up, Chin-up, Inverted Row, Australian Pull-up, Bodyweight Squat, Lunge, Bulgarian Split Squat, Glute Bridge, Hip Thrust, Wall Sit, Calf Raise, Plank, Side Plank, Dead Bug, Hollow Body Hold, Leg Raise, Bicycle Crunch, Tricep Dip using chair, Mountain Climber, Burpee, Jump Squat.` : '';
+
   return `You are a fitness AI coach.
 
 User: ${profile.name}, goal: ${profile.mode}
@@ -102,6 +105,8 @@ Protein target: ${nutritionPlan.protein}g
 ${formatTodayFoodTotals()}
 
 Weight trend: ${lastFourWeeksWeightTrend()}
+
+${bodyweightConstraint}
 
 ${extra}
 
@@ -191,6 +196,9 @@ export async function generateWorkoutPlan(
   profile: UserProfile
 ): Promise<string> {
 
+  const bodyweightConstraint = profile.equipment === 'bodyweight' ? `
+CRITICAL: User equipment preference is ${profile.equipment}. If equipment is bodyweight, you must ONLY generate bodyweight exercises. Never suggest any exercise requiring gym equipment, barbells, dumbbells, cables or machines. Bodyweight exercises only include: Push-up, Knee Push-up, Wall Push-up, Diamond Push-up, Pike Push-up, Decline Push-up, Pull-up, Chin-up, Inverted Row, Australian Pull-up, Bodyweight Squat, Lunge, Bulgarian Split Squat, Glute Bridge, Hip Thrust, Wall Sit, Calf Raise, Plank, Side Plank, Dead Bug, Hollow Body Hold, Leg Raise, Bicycle Crunch, Tricep Dip using chair, Mountain Climber, Burpee, Jump Squat.` : '';
+
   const prompt = `
 Create a structured weekly workout plan.
 
@@ -200,20 +208,21 @@ User details:
 - Goal: ${profile.mode}
 - Equipment available: ${profile.equipment}
 
+${bodyweightConstraint}
+
 Return ONLY valid JSON in this format:
 {
   "weeklyPlan": [
     {
       "day": "Monday",
-      "label": "Workout",
+      "focus": "Upper Body Push",
       "exercises": [
         {
-          "name": "Exercise",
+          "name": "Push-up",
           "sets": 3,
-          "reps": 10,
-          "weight": 0,
-          "restSeconds": 90,
-          "formTip": "Tip"
+          "reps": "10",
+          "targetWeight": 0,
+          "muscleGroup": "chest"
         }
       ]
     }
