@@ -12,7 +12,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   // ONLY for controlling app
-  const [apiKey] = useState(
+  const [apiKey, setApiKey] = useState(
     () => localStorage.getItem("groqApiKey") || ""
   );
 

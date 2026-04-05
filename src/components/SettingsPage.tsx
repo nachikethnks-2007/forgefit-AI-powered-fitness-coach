@@ -9,12 +9,30 @@ import { toast } from 'sonner';
 export default function SettingsPage() {
   const store = useAppStore();
   const { profile, nutritionPlan, groqApiKey, setGroqApiKey, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
-  const [apiKey, setApiKey] = useState(groqApiKey);
+  const [apiKey, setApiKey] = useState(groqApiKey || '');
+  const [isEditingKey, setIsEditingKey] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
   const handleSaveKey = () => {
     setGroqApiKey(apiKey);
+    localStorage.setItem('groqApiKey', apiKey);
+    setIsEditingKey(false);
     toast.success('API key saved');
+    window.location.reload();
+  };
+
+  const handleEditKey = () => {
+    setIsEditingKey(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingKey(false);
+    setApiKey(groqApiKey || '');
+  };
+
+  const maskApiKey = (key: string) => {
+    if (!key || key.length < 8) return key;
+    return key.slice(0, 3) + '•••••' + key.slice(-4);
   };
 
   const handleModeChange = (mode: Mode) => {
@@ -47,12 +65,50 @@ export default function SettingsPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-strong rounded-2xl p-6 border-glow">
           <h2 className="font-heading font-bold text-lg mb-3">Groq API Key</h2>
           <p className="text-xs text-muted-foreground mb-3">Required for AI features. Get yours at console.groq.com</p>
-          <div className="flex gap-2">
-            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="gsk_..." />
-            <button onClick={handleSaveKey} className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">Save</button>
-          </div>
+          {!isEditingKey ? (
+            <div className="flex items-center gap-2">
+              <input 
+                type="password" 
+                value={maskApiKey(groqApiKey || '')} 
+                readOnly
+                className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="No API key set"
+              />
+              <button 
+                onClick={handleEditKey} 
+                className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input 
+                  type="password" 
+                  value={apiKey} 
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                  placeholder="gsk_..." 
+                />
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleSaveKey} 
+                  className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
+                  disabled={!apiKey.trim()}
+                >
+                  Save
+                </button>
+                <button 
+                  onClick={handleCancelEdit} 
+                  className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Mode */}
