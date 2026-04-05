@@ -186,23 +186,42 @@ function replaceExercise(args: any): ToolExecutionResult {
 
 function changeSplit(args: any): ToolExecutionResult {
   let parsed;
+
   try {
     parsed = JSON.parse(args.weekly_plan_json);
   } catch {
     return { ok: false, summary: 'Invalid JSON' };
   }
 
+  // 🔥 FIX: handle both formats
+  if (!Array.isArray(parsed)) {
+    if (Array.isArray(parsed.weeklyPlan)) {
+      parsed = parsed.weeklyPlan;
+    } else {
+      return { ok: false, summary: 'Invalid workout format (expected array)' };
+    }
+  }
+
   const weeklyPlan: WorkoutDay[] = parsed.map((d: any) => ({
     day: d.day,
     label: d.label,
-    exercises: d.exercises.map((e: any) =>
-      buildExercise(e.name, e.sets, e.reps, e.rest_seconds, e.weight, e.form_tip)
+    exercises: (d.exercises || []).map((e: any) =>
+      buildExercise(
+        e.name || 'Exercise',
+        e.sets || 3,
+        e.reps || 10,
+        e.rest_seconds || 60,
+        e.weight,
+        e.form_tip
+      )
     ),
   }));
 
-  return commit({ weeklyPlan, generatedAt: Date.now() }, 'Workout split changed');
+  return commit(
+    { weeklyPlan, generatedAt: Date.now() },
+    'Workout split changed successfully'
+  );
 }
-
 export function applyNutritionTargetsUpdate(partial: {
   calories: number;
   protein: number;
