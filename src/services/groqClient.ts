@@ -246,3 +246,4 @@ export function chatMessagesToApiPayload(
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role, content: m.content }));
 }
+console.log("api key used:", localStorage.getItem('apikey'))
