@@ -16,41 +16,95 @@ function hasApiKey(): boolean {
   return Boolean(useAppStore.getState().groqApiKey || localStorage.getItem('groqApiKey'));
 }
 
-function lastThreeSessionsForOverlap(sessions: WorkoutSession[]): WorkoutSession[] {
-  const last3 = sessions.slice(-3);
-  const names = new Set<string>();
-  last3.forEach((s) => s.exercises.forEach((e) => names.add(e.name.toLowerCase())));
-  const relevant = sessions.filter((s) => s.exercises.some((e) => names.has(e.name.toLowerCase())));
-  return relevant.slice(-12);
+function lastThreeSessionsPerExercise(sessions: WorkoutSession[]): Map<string, WorkoutSession[]> {
+  const exerciseMap = new Map<string, WorkoutSession[]>();
+  
+  // Get last 12 sessions total
+  const recentSessions = sessions.slice(-12);
+  
+  // Group by exercise name
+  recentSessions.forEach(session => {
+    session.exercises.forEach(exercise => {
+      const name = exercise.name.toLowerCase().trim();
+      if (!exerciseMap.has(name)) {
+        exerciseMap.set(name, []);
+      }
+      exerciseMap.get(name)!.push({
+        ...session,
+        exercises: [exercise] // Only include this specific exercise
+      });
+    });
+  });
+  
+  // Keep only last 3 sessions per exercise
+  exerciseMap.forEach((sessionList, exerciseName) => {
+    exerciseMap.set(exerciseName, sessionList.slice(-3));
+  });
+  
+  return exerciseMap;
+}
+
+function analyzeExerciseProgress(sessions: WorkoutSession[]): 'increase' | 'decrease' | 'hold' {
+  if (sessions.length < 2) return 'hold';
+  
+  const lastSession = sessions[sessions.length - 1];
+  const previousSession = sessions[sessions.length - 2];
+  
+  const lastExercise = lastSession.exercises[0];
+  const previousExercise = previousSession.exercises[0];
+  
+  // Check if user hit target reps in both sessions
+  const lastHitTarget = lastExercise.sets.every((set: any) => set.reps >= Number(lastExercise.name.includes('reps') ? '10' : '8'));
+  const previousHitTarget = previousExercise.sets.every((set: any) => set.reps >= Number(previousExercise.name.includes('reps') ? '10' : '8'));
+  
+  if (lastHitTarget && previousHitTarget) {
+    return 'increase'; // Hit target reps 2 sessions in a row
+  } else if (!lastHitTarget && !previousHitTarget) {
+    return 'decrease'; // Failed reps 2 sessions in a row
+  }
+  
+  return 'hold'; // Mixed results
 }
 
 export async function runAfterWorkoutLogged(): Promise<void> {
   if (!hasApiKey()) return;
   if (sessionStorage.getItem(PROACTIVE_LOCK_WORKOUT)) return;
-  const { profile, nutritionPlan, workoutSessions } = useAppStore.getState();
-  if (!profile || !nutritionPlan || workoutSessions.length === 0) return;
+  const { profile, workoutSessions } = useAppStore.getState();
+  if (!profile || workoutSessions.length === 0) return;
 
   sessionStorage.setItem(PROACTIVE_LOCK_WORKOUT, '1');
   try {
-    const subset = lastThreeSessionsForOverlap(workoutSessions);
-    const userMsg = `You are running automatically after the user logged a workout. Review these recent sessions (focus on the last 3 and same exercise names). Decide if target weights should increase, decrease, hold, or deload. Call update_workout_intensity when appropriate with clear percentage and affected_exercises. Call flag_alert to summarize for the user.
+    const exerciseSessions = lastThreeSessionsPerExercise(workoutSessions);
+    const adjustments: Array<{exercise: string, adjustment: string, percentage: number}> = [];
+    
+    exerciseSessions.forEach((sessions, exerciseName) => {
+      if (sessions.length >= 2) {
+        const analysis = analyzeExerciseProgress(sessions);
+        if (analysis === 'increase') {
+          adjustments.push({exercise: exerciseName, adjustment: 'increase', percentage: 5});
+        } else if (analysis === 'decrease') {
+          adjustments.push({exercise: exerciseName, adjustment: 'decrease', percentage: 5});
+        }
+      }
+    });
+    
+    if (adjustments.length > 0) {
+      const userMsg = `You are running automatically after user logged a workout. Based on performance analysis, make these intensity adjustments: ${adjustments.map(a => `${a.exercise}: ${a.adjustment} ${a.percentage}%`).join(', ')}. Call update_workout_intensity for each adjustment with affected_exercises set to the specific exercise name.`;
 
-Sessions JSON:
-${JSON.stringify(subset.slice(-8))}`;
+      const { content, toolSummaries } = await callGroqWithTools([
+        { role: 'user', content: userMsg },
+      ]);
 
-    const { content, toolSummaries } = await callGroqWithTools([
-      { role: 'user', content: userMsg },
-    ]);
-
-    if (toolSummaries.length) {
-      const line = toolSummaries.join(' · ');
-      useAppStore.getState().addForgefitAlert({
-        id: `${Date.now()}_w`,
-        type: 'suggestion',
-        message: `Workout review: ${line}${content ? ` — ${content}` : ''}`,
-        read: false,
-        createdAt: Date.now(),
-      });
+      if (toolSummaries.length) {
+        const line = toolSummaries.join(' · ');
+        useAppStore.getState().addForgefitAlert({
+          id: `${Date.now()}_w`,
+          type: 'suggestion',
+          message: `Workout review: ${line}${content ? ` — ${content}` : ''}`,
+          read: false,
+          createdAt: Date.now(),
+        });
+      }
     }
   } catch {
     /* ignore proactive failures */
@@ -180,7 +234,7 @@ export async function runSundayWeeklyCheckin(): Promise<void> {
   localStorage.setItem(FORGEFIT_SUNDAY_AI_KEY, wk);
 
   try {
-    const userMsg = `Run the weekly check-in automatically. Review the full week: food logs, workouts, and weight trend. Summarize wins, gaps, and next-week focus. Use tools only if you must change targets or flag alerts; otherwise respond with a clear markdown summary.`;
+    const userMsg = `Run weekly check-in automatically. Review full week: food logs, workouts, and weight trend. Summarize wins, gaps, and next-week focus. Use tools only if you must change targets or flag alerts; otherwise respond with a clear markdown summary.`;
 
     const { content, toolSummaries } = await callGroqWithTools([{ role: 'user', content: userMsg }]);
 

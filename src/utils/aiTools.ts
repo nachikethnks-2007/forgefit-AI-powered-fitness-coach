@@ -1,14 +1,8 @@
 import type {
-  Exercise,
-  ForgefitAlertType,
   NutritionPlan,
-  UserProfile,
-  WorkoutDay,
-  WorkoutPlan,
 } from '@/types/fitness';
 import { useAppStore } from '@/store/useAppStore';
-import { calculateBodyFatPercent } from '@/utils/calculations';
-import { writeForgefitProfilePayload, FORGEFIT_MEASUREMENTS_LOG_KEY } from '@/utils/forgefitLocalStorage';
+import { callGroq } from '@/services/groqClient';
 
 /* ---------------- TOOLS ---------------- */
 
@@ -16,8 +10,97 @@ export const FORGEFIT_GROQ_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'replace_exercise',
+      description: 'Replace a specific exercise in the workout plan with a different one',
+      parameters: {
+        type: 'object',
+        properties: {
+          day: { type: 'string' },
+          exercise_to_replace: { type: 'string' },
+          replacement_exercise: { type: 'string' },
+          sets: { type: 'number' },
+          reps: { type: 'string' },
+          muscleGroup: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day', 'exercise_to_replace', 'replacement_exercise', 'sets', 'reps', 'muscleGroup', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'change_workout_split',
+      description: 'Completely regenerate weekly workout plan with different split',
+      parameters: {
+        type: 'object',
+        properties: {
+          new_split: { type: 'string' },
+          days_per_week: { type: 'number' },
+          reason: { type: 'string' },
+        },
+        required: ['new_split', 'days_per_week', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_exercise_volume',
+      description: 'Change sets and reps for a specific exercise',
+      parameters: {
+        type: 'object',
+        properties: {
+          day: { type: 'string' },
+          exercise_name: { type: 'string' },
+          new_sets: { type: 'number' },
+          new_reps: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day', 'exercise_name', 'new_sets', 'new_reps', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_exercise',
+      description: 'Add a new exercise to a specific day',
+      parameters: {
+        type: 'object',
+        properties: {
+          day: { type: 'string' },
+          exercise_name: { type: 'string' },
+          sets: { type: 'number' },
+          reps: { type: 'string' },
+          muscleGroup: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day', 'exercise_name', 'sets', 'reps', 'muscleGroup', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_exercise',
+      description: 'Remove an exercise from a specific day',
+      parameters: {
+        type: 'object',
+        properties: {
+          day: { type: 'string' },
+          exercise_name: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day', 'exercise_name', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'update_workout_intensity',
-      description: 'Adjust workout weights',
+      description: 'Increase or decrease weight/reps after workout performance analysis',
       parameters: {
         type: 'object',
         properties: {
@@ -27,43 +110,6 @@ export const FORGEFIT_GROQ_TOOLS = [
           reason: { type: 'string' },
         },
         required: ['adjustment', 'percentage', 'affected_exercises', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'replace_exercise',
-      description: 'Replace exercise using name only (no DB)',
-      parameters: {
-        type: 'object',
-        properties: {
-          day_label: { type: 'string' },
-          old_exercise_name: { type: 'string' },
-          exercise_name: { type: 'string' },
-          sets: { type: 'number' },
-          reps: { type: 'number' },
-          weight: { type: 'number' },
-          rest_seconds: { type: 'number' },
-          form_tip: { type: 'string' },
-          reason: { type: 'string' },
-        },
-        required: ['day_label', 'old_exercise_name', 'exercise_name', 'sets', 'reps', 'rest_seconds', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'change_workout_split',
-      description: 'Change full workout split using exercise names only',
-      parameters: {
-        type: 'object',
-        properties: {
-          weekly_plan_json: { type: 'string' },
-          reason: { type: 'string' },
-        },
-        required: ['weekly_plan_json', 'reason'],
       },
     },
   },
@@ -84,166 +130,224 @@ function parseArgs(raw: string): Record<string, unknown> {
   }
 }
 
-/* ---------------- HELPERS ---------------- */
-
-function buildExercise(
-  name: string,
-  sets: number,
-  reps: string,
-  targetWeight: number,
-  muscleGroup: string,
-  restSeconds?: number,
-  formTip?: string
-): Exercise {
-  return {
-    name,
-    sets,
-    reps,
-    targetWeight,
-    muscleGroup,
-    restSeconds: restSeconds || 90,
-    formTip: formTip || 'Focus on form',
-  };
-}
-
-function cloneWorkoutPlan(p: WorkoutPlan): WorkoutPlan {
-  return {
-    generatedAt: p.generatedAt,
-    weeklyPlan: p.weeklyPlan.map((d) => ({
-      ...d,
-      exercises: d.exercises.map((e) => ({ ...e })),
-    })),
-  };
-}
-
-function findDay(plan: WorkoutPlan, label: string): WorkoutDay | null {
-  const normalizedLabel = label.trim().toLowerCase();
-  return plan.weeklyPlan.find(d => d.focus.trim().toLowerCase() === normalizedLabel) || null;
-}
-
-function commit(plan: WorkoutPlan, summary: string): ToolExecutionResult {
-  useAppStore.getState().setWorkoutPlan(plan);
-  return { ok: true, summary };
-}
-
 /* ---------------- TOOL EXECUTION ---------------- */
 
 export function executeForgefitTool(name: string, argsJson: string): ToolExecutionResult {
   const args = parseArgs(argsJson);
 
   switch (name) {
-    case 'update_workout_intensity':
-      return updateIntensity(args);
     case 'replace_exercise':
       return replaceExercise(args);
     case 'change_workout_split':
       return changeSplit(args);
+    case 'adjust_exercise_volume':
+      return adjustVolume(args);
+    case 'add_exercise':
+      return addExercise(args);
+    case 'remove_exercise':
+      return removeExercise(args);
+    case 'update_workout_intensity':
+      return updateIntensity(args);
     default:
       return { ok: false, summary: 'Unknown tool' };
   }
 }
 
-/* ---------------- TOOLS ---------------- */
-
-function updateIntensity(args: any): ToolExecutionResult {
-  const { workoutPlan } = useAppStore.getState();
-  console.log('DEBUG: localStorage workout plan structure:', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
-  console.log('DEBUG: current workoutPlan from store:', JSON.stringify(workoutPlan, null, 2));
-  if (!workoutPlan) return { ok: false, summary: 'No plan' };
-
-  const next = cloneWorkoutPlan(workoutPlan);
-
-  next.weeklyPlan.forEach(day => {
-    day.exercises.forEach(ex => {
-      if (args.adjustment === 'increase') {
-        ex.targetWeight = ex.targetWeight * 1.05;
-      } else if (args.adjustment === 'decrease') {
-        ex.targetWeight = ex.targetWeight * 0.95;
-      }
-    });
-  });
-
-  return commit(next, 'Workout intensity updated');
-}
+/* ---------------- WORKOUT TOOLS ---------------- */
 
 function replaceExercise(args: any): ToolExecutionResult {
-  const { workoutPlan } = useAppStore.getState();
-  console.log('DEBUG: localStorage workout plan structure:', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
-  console.log('DEBUG: current workoutPlan from store:', JSON.stringify(workoutPlan, null, 2));
-  if (!workoutPlan) return { ok: false, summary: 'No plan' };
-
-  const next = cloneWorkoutPlan(workoutPlan);
-  const day = findDay(next, args.day_label);
-  if (!day) return { ok: false, summary: 'Day not found' };
-
-  const index = day.exercises.findIndex(e => e.name === args.old_exercise_name);
-  if (index === -1) return { ok: false, summary: 'Exercise not found' };
-
-  day.exercises[index] = buildExercise(
-    args.exercise_name,
-    args.sets,
-    args.reps.toString(),
-    args.weight || 0,
-    args.muscle_group || 'general',
-    args.rest_seconds,
-    args.form_tip
+  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
+  const days = plan.weeklyPlan || [];
+  
+  const dayIndex = days.findIndex((d: any) => 
+    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
   );
-
-  return commit(next, 'Exercise replaced');
+  if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
+  
+  const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
+    e.name.toLowerCase().trim() === args.exercise_to_replace.toLowerCase().trim()
+  );
+  if (exIndex === -1) return { ok: false, summary: 'Exercise not found' };
+  
+  days[dayIndex].exercises[exIndex] = {
+    name: args.replacement_exercise,
+    sets: args.sets,
+    reps: args.reps,
+    targetWeight: 0,
+    muscleGroup: args.muscleGroup,
+    restSeconds: 90,
+    formTip: ''
+  };
+  
+  plan.weeklyPlan = days;
+  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  
+  return { 
+    ok: true, 
+    summary: `✅ Replaced ${args.exercise_to_replace} with ${args.replacement_exercise} on ${args.day}` 
+  };
 }
 
 function changeSplit(args: any): ToolExecutionResult {
-  console.log('DEBUG: localStorage workout plan structure (before):', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
-  const { workoutPlan } = useAppStore.getState();
-  console.log('DEBUG: current workoutPlan from store (before):', JSON.stringify(workoutPlan, null, 2));
+  const { profile } = useAppStore.getState();
+  if (!profile) return { ok: false, summary: 'No profile found' };
   
-  let parsed;
-
-  try {
-    parsed = JSON.parse(args.weekly_plan_json);
-  } catch {
-    return { ok: false, summary: 'Invalid JSON' };
+  const prompt = `Generate a ${args.new_split} workout split for ${args.days_per_week} days per week.
+User equipment: ${profile.equipment}
+User fitness level: ${profile.fitnessLevel}
+CRITICAL: Only use bodyweight exercises if equipment is bodyweight.
+Return ONLY a valid JSON array like this exact format, no extra text:
+[
+  {
+    "day": "Monday",
+    "focus": "Upper Body Push", 
+    "exercises": [
+      {"name": "Push-up", "sets": 3, "reps": "10", "targetWeight": 0, "muscleGroup": "chest", "restSeconds": 90, "formTip": "Keep core tight"}
+    ]
   }
+]`;
 
-  console.log('DEBUG: parsed weekly_plan_json:', JSON.stringify(parsed, null, 2));
-
-  // 🔥 FIX: handle both formats and ensure array structure
-  if (!Array.isArray(parsed)) {
-    if (Array.isArray(parsed.weeklyPlan)) {
-      parsed = parsed.weeklyPlan;
-    } else {
-      return { ok: false, summary: 'Invalid workout format (expected array)' };
+  return callGroq([
+    { role: 'system', content: 'You are a fitness coach. Return ONLY JSON.' },
+    { role: 'user', content: prompt }
+  ]).then(response => {
+    try {
+      const parsedArray = JSON.parse(response.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+      const newPlan = {
+        weeklyPlan: parsedArray,
+        generatedAt: Date.now()
+      };
+      localStorage.setItem('forgefit_workout_plan', JSON.stringify(newPlan));
+      window.dispatchEvent(new Event('workoutPlanUpdated'));
+      return { ok: true, summary: `✅ Workout split changed to ${args.new_split}` };
+    } catch {
+      return { ok: false, summary: 'Failed to parse workout plan' };
     }
-  }
+  }).catch(() => {
+    return { ok: false, summary: 'Failed to generate workout plan' };
+  }) as ToolExecutionResult;
+}
 
-  console.log('DEBUG: final array to process:', JSON.stringify(parsed, null, 2));
+function adjustVolume(args: any): ToolExecutionResult {
+  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
+  const days = plan.weeklyPlan || [];
+  
+  const dayIndex = days.findIndex((d: any) => 
+    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
+  );
+  if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
+  
+  const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
+    e.name.toLowerCase().trim() === args.exercise_name.toLowerCase().trim()
+  );
+  if (exIndex === -1) return { ok: false, summary: 'Exercise not found' };
+  
+  days[dayIndex].exercises[exIndex].sets = args.new_sets;
+  days[dayIndex].exercises[exIndex].reps = args.new_reps;
+  
+  plan.weeklyPlan = days;
+  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  
+  return { 
+    ok: true, 
+    summary: `✅ Updated ${args.exercise_name} to ${args.new_sets}×${args.new_reps} on ${args.day}` 
+  };
+}
 
-  const weeklyPlan: WorkoutDay[] = parsed.map((d: any) => ({
-    day: d.day,
-    focus: d.focus || d.label || 'Workout',
-    exercises: (d.exercises || []).map((e: any) =>
-      buildExercise(
-        e.name || 'Exercise',
-        e.sets || 3,
-        e.reps?.toString() || '10',
-        e.targetWeight || e.weight || 0,
-        e.muscleGroup || e.muscle_group || 'general',
-        e.rest_seconds || 60,
-        e.form_tip
-      )
-    ),
-  }));
+function addExercise(args: any): ToolExecutionResult {
+  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
+  const days = plan.weeklyPlan || [];
+  
+  const dayIndex = days.findIndex((d: any) => 
+    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
+  );
+  if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
+  
+  days[dayIndex].exercises.push({
+    name: args.exercise_name,
+    sets: args.sets,
+    reps: args.reps,
+    targetWeight: 0,
+    muscleGroup: args.muscleGroup,
+    restSeconds: 90,
+    formTip: ''
+  });
+  
+  plan.weeklyPlan = days;
+  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  
+  return { 
+    ok: true, 
+    summary: `✅ Added ${args.exercise_name} to ${args.day}` 
+  };
+}
 
-  const result = commit(
-    { weeklyPlan, generatedAt: Date.now() },
-    'Workout split changed successfully'
+function removeExercise(args: any): ToolExecutionResult {
+  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
+  const days = plan.weeklyPlan || [];
+  
+  const dayIndex = days.findIndex((d: any) => 
+    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
+  );
+  if (dayIndex === -1) return { ok: false, summary: 'Day not found' };
+  
+  const originalLength = days[dayIndex].exercises.length;
+  days[dayIndex].exercises = days[dayIndex].exercises.filter((e: any) =>
+    e.name.toLowerCase().trim() !== args.exercise_name.toLowerCase().trim()
   );
   
-  console.log('DEBUG: localStorage workout plan structure (after):', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
-  console.log('DEBUG: workout plan stored in expected array format');
+  if (days[dayIndex].exercises.length === originalLength) {
+    return { ok: false, summary: 'Exercise not found' };
+  }
   
-  return result;
+  plan.weeklyPlan = days;
+  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  
+  return { 
+    ok: true, 
+    summary: `✅ Removed ${args.exercise_name} from ${args.day}` 
+  };
 }
+
+function updateIntensity(args: any): ToolExecutionResult {
+  const plan = JSON.parse(localStorage.getItem('forgefit_workout_plan') || '{}');
+  const days = plan.weeklyPlan || [];
+  
+  days.forEach((day: any) => {
+    day.exercises.forEach((exercise: any) => {
+      const shouldUpdate = args.affected_exercises.includes('all') || 
+        args.affected_exercises.some((name: string) => 
+          name.toLowerCase().trim() === exercise.name.toLowerCase().trim()
+        );
+      
+      if (shouldUpdate) {
+        if (args.adjustment === 'increase') {
+          exercise.targetWeight = exercise.targetWeight * (1 + args.percentage / 100);
+        } else if (args.adjustment === 'decrease') {
+          exercise.targetWeight = exercise.targetWeight * (1 - args.percentage / 100);
+        } else if (args.adjustment === 'deload') {
+          exercise.targetWeight = exercise.targetWeight * 0.8;
+        }
+        // 'hold' does nothing
+      }
+    });
+  });
+  
+  plan.weeklyPlan = days;
+  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  
+  return { 
+    ok: true, 
+    summary: `✅ Workout intensity updated: ${args.adjustment} ${args.percentage}%` 
+  };
+}
+
+/* ---------------- NUTRITION TOOLS ---------------- */
 
 export function applyNutritionTargetsUpdate(partial: {
   calories: number;

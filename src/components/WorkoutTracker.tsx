@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Play, Check, Loader2, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
@@ -43,6 +43,24 @@ export default function WorkoutTracker() {
   const [logData, setLogData] = useState<Record<string, LoggedSet[]>>({});
   const [aiTip, setAiTip] = useState('');
   const [askingAI, setAskingAI] = useState(false);
+
+  // Listen for workout plan updates from AI tools
+  useEffect(() => {
+    const handleWorkoutPlanUpdate = () => {
+      const savedPlan = localStorage.getItem('forgefit_workout_plan');
+      if (savedPlan) {
+        try {
+          const plan = JSON.parse(savedPlan);
+          setWorkoutPlan(plan);
+        } catch {
+          console.error('Failed to parse workout plan from localStorage');
+        }
+      }
+    };
+
+    window.addEventListener('workoutPlanUpdated', handleWorkoutPlanUpdate);
+    return () => window.removeEventListener('workoutPlanUpdated', handleWorkoutPlanUpdate);
+  }, [setWorkoutPlan]);
 
   if (!profile) return null;
 
