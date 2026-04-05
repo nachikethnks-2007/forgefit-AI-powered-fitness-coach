@@ -10,7 +10,7 @@ import {
 } from '@/services/wgerExerciseDb';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const TOOL_MODEL = 'openai/gpt-oss-120b';
+const TOOL_MODEL = 'llama-3.3-70b-versatile';
 
 interface GroqToolCall {
   id: string;
@@ -35,7 +35,7 @@ interface GroqResponse {
 
 export async function callGroq(
   messages: Array<{ role: string; content: string }>,
-  model = 'openai/gpt-oss-120b'
+  model = 'llama-3.3-70b-versatile'
 ): Promise<string> {
   const apiKey = localStorage.getItem('groqApiKey');
 
@@ -230,7 +230,6 @@ export async function callGroqWithTools(
         tool_choice: 'auto',
         temperature: 0.5,
         max_tokens: 2048,
-        reasoning_effort: 'medium',
       }),
     });
 
