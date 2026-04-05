@@ -2,6 +2,7 @@ import type { UserProfile, NutritionPlan, ChatMessage } from '@/types/fitness';
 import { buildCompleteNutritionPlan } from '@/utils/calculations';
 import { useAppStore } from '@/store/useAppStore';
 import { FORGEFIT_GROQ_TOOLS, executeForgefitTool } from '@/utils/aiTools';
+import { ensureWgerExerciseDb, getWgerExerciseDbPromptSection } from '@/services/wgerExerciseDb';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TOOL_MODEL = 'llama-3.3-70b-versatile';
@@ -89,13 +90,17 @@ function lastFourWeeksWeightTrend(): string {
 
 /** Full coach context + tool instructions for every Groq call that uses tools. */
 export function buildForgeFitAISystemPrompt(extraContext = ''): string {
-  const { profile, nutritionPlan, workoutSessions } = useAppStore.getState();
+  const { profile, nutritionPlan, workoutSessions, workoutPlan } = useAppStore.getState();
   if (!profile || !nutritionPlan) {
     return 'User profile is not loaded.';
   }
 
   const last3 = workoutSessions.slice(-3);
   const modeLabel = { cut: 'Cutting (fat loss)', bulk: 'Bulking (muscle gain)', recomposition: 'Body Recomposition' };
+  const exerciseDb = getWgerExerciseDbPromptSection(42000);
+  const planSnippet = workoutPlan
+    ? JSON.stringify(workoutPlan.weeklyPlan)
+    : 'No workout plan saved yet.';
 
   return `You are ForgeFit AI, the user's 24/7 personal trainer. Address them by name (${profile.name}).
 
@@ -123,13 +128,20 @@ ${JSON.stringify(last3)}
 LAST 4 WEEKS WEIGHT TREND
 ${lastFourWeeksWeightTrend()}
 
-TOOLS — use them when action is needed, then explain in your reply:
-- If the user gives new measurements, call update_body_stats.
-- If nutrition targets need adjusting, call update_nutrition_targets.
-- If workout intensity or loads need changing, call update_workout_intensity.
-- Use flag_alert for important dashboard insights.
+${exerciseDb}
 
-Always explain what you changed and why. Be direct, motivating, and data-driven.
+CURRENT WORKOUT PLAN (JSON; updates sync to localStorage forgefit_workout_plan and refresh the Workout Tracker)
+${planSnippet}
+
+TOOLS — use when needed, then explain in your reply:
+- Measurements: update_body_stats
+- Nutrition: update_nutrition_targets
+- Scale loads on existing plan: update_workout_intensity
+- Exercises from WGER DB only (match wger_exercise_id): replace_exercise, add_exercise, remove_exercise, adjust_exercise_volume
+- Full new split: change_workout_split (weekly_plan_json array with wger_exercise_id per lift)
+- Dashboard: flag_alert
+
+If user gives new measurements call update_body_stats. If nutrition needs adjusting call update_nutrition_targets. If workout intensity needs changing call update_workout_intensity. For exercise swaps or plan edits use the workout tools; never invent exercises outside the database. Always explain what you changed and why. Be direct, motivating, and data-driven.
 
 ${extraContext ? `\nEXTRA:\n${extraContext}` : ''}`;
 }
@@ -169,6 +181,8 @@ export async function callGroqWithTools(
   if (!apiKey) {
     throw new Error('Missing API key');
   }
+
+  await ensureWgerExerciseDb();
 
   const system = buildForgeFitAISystemPrompt(options?.extraSystemSuffix ?? '');
   const messages: GroqMessage[] = [{ role: 'system', content: system }, ...conversationMessages];
@@ -228,25 +242,44 @@ export function calculateNutritionPlan(_apiKey: string, profile: UserProfile): P
   return Promise.resolve(buildCompleteNutritionPlan(profile));
 }
 
-export async function generateWorkoutPlan(apiKey: string, profile: UserProfile): Promise<string> {
-  const prompt = `Create a weekly workout plan for this user. Return ONLY valid JSON (no markdown):
+export async function generateWorkoutPlan(_apiKey: string, profile: UserProfile): Promise<string> {
+  await ensureWgerExerciseDb();
+  const exerciseDb = getWgerExerciseDbPromptSection(55000);
+
+  const prompt = `${exerciseDb}
+
+Create a weekly workout plan for this user. Return ONLY valid JSON (no markdown) with this exact shape:
 {
   "weeklyPlan": [
     {
       "day": "Monday",
       "label": "Push Day",
       "exercises": [
-        { "name": "Exercise Name", "sets": 3, "reps": 10, "weight": 0, "restSeconds": 90, "formTip": "Brief tip" }
+        {
+          "name": "Exact English name from WGER list above",
+          "wger_exercise_id": 0,
+          "sets": 3,
+          "reps": 10,
+          "weight": 0,
+          "restSeconds": 90,
+          "formTip": "Brief tip"
+        }
       ]
     }
   ]
 }
 
-User: ${profile.fitnessLevel} level, ${profile.trainingDays} days/week, ${profile.equipment} equipment, mode: ${profile.mode}.
-${profile.injuries ? `Injuries: ${profile.injuries}` : ''}`;
+Rules:
+- Every exercise MUST include "wger_exercise_id" and "name" copied together from the same row in the WGER database above.
+- ONLY choose exercises appropriate for: ${profile.fitnessLevel} level, ${profile.trainingDays} training days/week, equipment context: ${profile.equipment}, mode: ${profile.mode}.
+${profile.injuries ? `- Account for injuries/limitations: ${profile.injuries}` : ''}`;
 
   return await callGroq([
-    { role: 'system', content: 'You are an expert workout programmer. Return ONLY valid JSON.' },
+    {
+      role: 'system',
+      content:
+        'You are an expert workout programmer. Return ONLY valid JSON. Never invent exercises: every movement must come from the WGER list in the user message with matching id and name.',
+    },
     { role: 'user', content: prompt },
   ]);
 }

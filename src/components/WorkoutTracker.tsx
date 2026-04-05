@@ -3,8 +3,36 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Play, Check, Loader2, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { generateWorkoutPlan, callGroqWithTools } from '@/services/groqClient';
-import type { WorkoutDay, LoggedExercise, LoggedSet } from '@/types/fitness';
+import type { WorkoutDay, LoggedExercise, LoggedSet, Exercise, WorkoutPlan } from '@/types/fitness';
 import { toast } from 'sonner';
+
+function normalizeGeneratedPlan(raw: { weeklyPlan?: unknown[] }): WorkoutPlan {
+  const days = Array.isArray(raw.weeklyPlan) ? raw.weeklyPlan : [];
+  const weeklyPlan: WorkoutDay[] = days.map((d) => {
+    const day = d as Record<string, unknown>;
+    const exList = Array.isArray(day.exercises) ? day.exercises : [];
+    const exercises: Exercise[] = exList.map((ex) => {
+      const e = ex as Record<string, unknown>;
+      const out: Exercise = {
+        name: String(e.name ?? ''),
+        sets: Number(e.sets) || 0,
+        reps: Number(e.reps) || 0,
+        weight: e.weight != null && e.weight !== '' ? Number(e.weight) : undefined,
+        restSeconds: Number(e.restSeconds ?? e.rest_seconds) || 90,
+        formTip: String(e.formTip ?? e.form_tip ?? ''),
+      };
+      const wid = e.wgerExerciseId ?? e.wger_exercise_id;
+      if (wid != null && Number.isFinite(Number(wid))) out.wgerExerciseId = Number(wid);
+      return out;
+    });
+    return {
+      day: String(day.day ?? ''),
+      label: String(day.label ?? ''),
+      exercises,
+    };
+  });
+  return { weeklyPlan, generatedAt: Date.now() };
+}
 
 export default function WorkoutTracker() {
   const { profile, nutritionPlan, workoutPlan, setWorkoutPlan, addWorkoutSession, groqApiKey, setCurrentPage, workoutSessions } = useAppStore();
@@ -23,8 +51,8 @@ export default function WorkoutTracker() {
     try {
       const raw = await generateWorkoutPlan(groqApiKey, profile);
       const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-      const plan = JSON.parse(cleaned);
-      setWorkoutPlan({ ...plan, generatedAt: Date.now() });
+      const parsed = JSON.parse(cleaned) as { weeklyPlan?: unknown[] };
+      setWorkoutPlan(normalizeGeneratedPlan(parsed));
       toast.success('Workout plan generated!');
     } catch {
       toast.error('Failed to generate plan. Check API key.');

@@ -1,7 +1,15 @@
-import type { Exercise, ForgefitAlertType, NutritionPlan, UserProfile, WorkoutPlan } from '@/types/fitness';
+import type {
+  Exercise,
+  ForgefitAlertType,
+  NutritionPlan,
+  UserProfile,
+  WorkoutDay,
+  WorkoutPlan,
+} from '@/types/fitness';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateBodyFatPercent } from '@/utils/calculations';
 import { writeForgefitProfilePayload, FORGEFIT_MEASUREMENTS_LOG_KEY } from '@/utils/forgefitLocalStorage';
+import { getCachedExerciseById } from '@/services/wgerExerciseDb';
 
 export const FORGEFIT_GROQ_TOOLS: Array<{
   type: 'function';
@@ -93,6 +101,108 @@ export const FORGEFIT_GROQ_TOOLS: Array<{
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'replace_exercise',
+      description:
+        'Replace one exercise on a training day with a different movement from the wger database (same day label as in the current plan).',
+      parameters: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string', description: 'Day label e.g. Push Day (match current plan)' },
+          old_exercise_name: { type: 'string' },
+          wger_exercise_id: { type: 'number' },
+          sets: { type: 'number' },
+          reps: { type: 'number' },
+          weight: { type: 'number', description: 'Target weight; 0 if unknown' },
+          rest_seconds: { type: 'number' },
+          form_tip: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: [
+          'day_label',
+          'old_exercise_name',
+          'wger_exercise_id',
+          'sets',
+          'reps',
+          'rest_seconds',
+          'reason',
+        ],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_exercise',
+      description: 'Append an exercise from the wger database to an existing day in the workout plan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string' },
+          wger_exercise_id: { type: 'number' },
+          sets: { type: 'number' },
+          reps: { type: 'number' },
+          weight: { type: 'number' },
+          rest_seconds: { type: 'number' },
+          form_tip: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day_label', 'wger_exercise_id', 'sets', 'reps', 'rest_seconds', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_exercise',
+      description: 'Remove an exercise by name from a day in the workout plan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string' },
+          exercise_name: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['day_label', 'exercise_name', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_exercise_volume',
+      description: 'Change sets and/or reps for a named exercise on a given day.',
+      parameters: {
+        type: 'object',
+        properties: {
+          day_label: { type: 'string' },
+          exercise_name: { type: 'string' },
+          sets: { type: 'number', description: 'New set count (omit to leave unchanged)' },
+          reps: { type: 'number', description: 'New rep target (omit to leave unchanged)' },
+          reason: { type: 'string' },
+        },
+        required: ['day_label', 'exercise_name', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'change_workout_split',
+      description:
+        'Replace the entire weekly workout plan. weekly_plan_json must be a JSON array of {day,label,exercises:[{wger_exercise_id,sets,reps,weight?,rest_seconds,form_tip?}]}. All wger_exercise_id values must exist in the cached database.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weekly_plan_json: { type: 'string' },
+          reason: { type: 'string' },
+        },
+        required: ['weekly_plan_json', 'reason'],
+      },
+    },
+  },
 ];
 
 export interface ToolExecutionResult {
@@ -125,7 +235,6 @@ function syncProfileToLS(profile: UserProfile | null, plan: NutritionPlan | null
 
 export function executeForgefitTool(functionName: string, argumentsJson: string): ToolExecutionResult {
   const args = parseArgs(argumentsJson);
-  const store = useAppStore.getState();
 
   switch (functionName) {
     case 'update_nutrition_targets':
@@ -136,6 +245,16 @@ export function executeForgefitTool(functionName: string, argumentsJson: string)
       return toolUpdateWorkoutIntensity(args);
     case 'flag_alert':
       return toolFlagAlert(args);
+    case 'replace_exercise':
+      return toolReplaceExercise(args);
+    case 'add_exercise':
+      return toolAddExercise(args);
+    case 'remove_exercise':
+      return toolRemoveExercise(args);
+    case 'adjust_exercise_volume':
+      return toolAdjustExerciseVolume(args);
+    case 'change_workout_split':
+      return toolChangeWorkoutSplit(args);
     default:
       return { ok: false, summary: `Unknown tool: ${functionName}` };
   }
@@ -288,6 +407,201 @@ function toolFlagAlert(args: Record<string, unknown>): ToolExecutionResult {
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   useAppStore.getState().addForgefitAlert({ id, type: t, message, read: false, createdAt: Date.now() });
   return { ok: true, summary: `Alert [${t}]: ${message}` };
+}
+
+function cloneWorkoutPlan(p: WorkoutPlan): WorkoutPlan {
+  return {
+    generatedAt: p.generatedAt,
+    weeklyPlan: p.weeklyPlan.map((d) => ({
+      ...d,
+      exercises: d.exercises.map((e) => ({ ...e })),
+    })),
+  };
+}
+
+function findDayRef(plan: WorkoutPlan, day_label: string): WorkoutDay | null {
+  const L = day_label.trim().toLowerCase();
+  return (
+    plan.weeklyPlan.find(
+      (d) => d.label.trim().toLowerCase() === L || d.day.trim().toLowerCase() === L
+    ) ?? null
+  );
+}
+
+function commitWorkoutPlanFromWeekly(weeklyPlan: WorkoutDay[], summary: string): ToolExecutionResult {
+  useAppStore.getState().setWorkoutPlan({ weeklyPlan, generatedAt: Date.now() });
+  return { ok: true, summary };
+}
+
+function buildExerciseFromWger(
+  wgerId: number,
+  sets: number,
+  reps: number,
+  restSeconds: number,
+  weight?: number,
+  formTip?: string
+): Exercise | null {
+  const c = getCachedExerciseById(wgerId);
+  if (!c) return null;
+  return {
+    name: c.name,
+    sets: Math.round(sets),
+    reps: Math.round(reps),
+    weight: weight !== undefined && Number.isFinite(weight) ? weight : undefined,
+    restSeconds: Math.round(restSeconds),
+    formTip:
+      formTip ||
+      `${c.category} · ${c.difficulty} · ${c.equipment.slice(0, 3).join(', ') || 'wger'}`,
+    wgerExerciseId: c.id,
+  };
+}
+
+function toolReplaceExercise(args: Record<string, unknown>): ToolExecutionResult {
+  const { workoutPlan } = useAppStore.getState();
+  if (!workoutPlan) return { ok: false, summary: 'No workout plan.' };
+  const day_label = String(args.day_label ?? '');
+  const oldName = String(args.old_exercise_name ?? '');
+  const wgerId = Number(args.wger_exercise_id);
+  const sets = Number(args.sets);
+  const reps = Number(args.reps);
+  const weight = args.weight !== undefined && args.weight !== null ? Number(args.weight) : undefined;
+  const rest_seconds = Number(args.rest_seconds);
+  const form_tip = args.form_tip != null ? String(args.form_tip) : undefined;
+  const reason = String(args.reason ?? '');
+
+  const next = cloneWorkoutPlan(workoutPlan);
+  const day = findDayRef(next, day_label);
+  if (!day) return { ok: false, summary: `Day "${day_label}" not found.` };
+  const idx = day.exercises.findIndex((e) => e.name.trim().toLowerCase() === oldName.trim().toLowerCase());
+  if (idx < 0) return { ok: false, summary: `Exercise "${oldName}" not found on that day.` };
+  const built = buildExerciseFromWger(wgerId, sets, reps, rest_seconds, weight, form_tip);
+  if (!built) return { ok: false, summary: `Unknown wger_exercise_id ${wgerId} (refresh exercise DB?).` };
+  day.exercises[idx] = built;
+  return commitWorkoutPlanFromWeekly(
+    next.weeklyPlan,
+    `Replaced "${oldName}" with "${built.name}" (wger ${wgerId}). ${reason}`
+  );
+}
+
+function toolAddExercise(args: Record<string, unknown>): ToolExecutionResult {
+  const { workoutPlan } = useAppStore.getState();
+  if (!workoutPlan) return { ok: false, summary: 'No workout plan.' };
+  const day_label = String(args.day_label ?? '');
+  const wgerId = Number(args.wger_exercise_id);
+  const sets = Number(args.sets);
+  const reps = Number(args.reps);
+  const weight = args.weight !== undefined && args.weight !== null ? Number(args.weight) : undefined;
+  const rest_seconds = Number(args.rest_seconds);
+  const form_tip = args.form_tip != null ? String(args.form_tip) : undefined;
+  const reason = String(args.reason ?? '');
+
+  const next = cloneWorkoutPlan(workoutPlan);
+  const day = findDayRef(next, day_label);
+  if (!day) return { ok: false, summary: `Day "${day_label}" not found.` };
+  const built = buildExerciseFromWger(wgerId, sets, reps, rest_seconds, weight, form_tip);
+  if (!built) return { ok: false, summary: `Unknown wger_exercise_id ${wgerId}.` };
+  day.exercises.push(built);
+  return commitWorkoutPlanFromWeekly(next.weeklyPlan, `Added "${built.name}" to ${day.label}. ${reason}`);
+}
+
+function toolRemoveExercise(args: Record<string, unknown>): ToolExecutionResult {
+  const { workoutPlan } = useAppStore.getState();
+  if (!workoutPlan) return { ok: false, summary: 'No workout plan.' };
+  const day_label = String(args.day_label ?? '');
+  const exercise_name = String(args.exercise_name ?? '');
+  const reason = String(args.reason ?? '');
+
+  const next = cloneWorkoutPlan(workoutPlan);
+  const day = findDayRef(next, day_label);
+  if (!day) return { ok: false, summary: `Day "${day_label}" not found.` };
+  const before = day.exercises.length;
+  day.exercises = day.exercises.filter(
+    (e) => e.name.trim().toLowerCase() !== exercise_name.trim().toLowerCase()
+  );
+  if (day.exercises.length === before) {
+    return { ok: false, summary: `Exercise "${exercise_name}" not found on that day.` };
+  }
+  return commitWorkoutPlanFromWeekly(next.weeklyPlan, `Removed "${exercise_name}" from ${day.label}. ${reason}`);
+}
+
+function toolAdjustExerciseVolume(args: Record<string, unknown>): ToolExecutionResult {
+  const { workoutPlan } = useAppStore.getState();
+  if (!workoutPlan) return { ok: false, summary: 'No workout plan.' };
+  const day_label = String(args.day_label ?? '');
+  const exercise_name = String(args.exercise_name ?? '');
+  const reason = String(args.reason ?? '');
+  const hasSets = args.sets !== undefined && args.sets !== null;
+  const hasReps = args.reps !== undefined && args.reps !== null;
+  if (!hasSets && !hasReps) return { ok: false, summary: 'Provide sets and/or reps to change.' };
+
+  const next = cloneWorkoutPlan(workoutPlan);
+  const day = findDayRef(next, day_label);
+  if (!day) return { ok: false, summary: `Day "${day_label}" not found.` };
+  const ex = day.exercises.find((e) => e.name.trim().toLowerCase() === exercise_name.trim().toLowerCase());
+  if (!ex) return { ok: false, summary: `Exercise "${exercise_name}" not found.` };
+  if (hasSets) ex.sets = Math.round(Number(args.sets));
+  if (hasReps) ex.reps = Math.round(Number(args.reps));
+  return commitWorkoutPlanFromWeekly(
+    next.weeklyPlan,
+    `Updated volume for "${exercise_name}" (${ex.sets}x${ex.reps}). ${reason}`
+  );
+}
+
+type SplitExerciseIn = {
+  wger_exercise_id: number;
+  sets: number;
+  reps: number;
+  weight?: number;
+  rest_seconds: number;
+  form_tip?: string;
+};
+
+type SplitDayIn = {
+  day: string;
+  label: string;
+  exercises: SplitExerciseIn[];
+};
+
+function toolChangeWorkoutSplit(args: Record<string, unknown>): ToolExecutionResult {
+  const raw = String(args.weekly_plan_json ?? '');
+  const reason = String(args.reason ?? '');
+  let parsed: SplitDayIn[];
+  try {
+    parsed = JSON.parse(raw) as SplitDayIn[];
+  } catch {
+    return { ok: false, summary: 'Invalid weekly_plan_json (must be JSON array).' };
+  }
+  if (!Array.isArray(parsed) || !parsed.length) {
+    return { ok: false, summary: 'weekly_plan_json must be a non-empty array of days.' };
+  }
+
+  const weeklyPlan: WorkoutDay[] = [];
+  for (const d of parsed) {
+    if (!d || typeof d.day !== 'string' || typeof d.label !== 'string' || !Array.isArray(d.exercises)) {
+      return { ok: false, summary: 'Each day needs string day, label, and exercises array.' };
+    }
+    const exercises: Exercise[] = [];
+    for (const ex of d.exercises) {
+      const built = buildExerciseFromWger(
+        Number(ex.wger_exercise_id),
+        Number(ex.sets),
+        Number(ex.reps),
+        Number(ex.rest_seconds),
+        ex.weight !== undefined ? Number(ex.weight) : undefined,
+        ex.form_tip
+      );
+      if (!built) {
+        return { ok: false, summary: `Unknown wger_exercise_id ${ex.wger_exercise_id} in split.` };
+      }
+      exercises.push(built);
+    }
+    weeklyPlan.push({ day: d.day, label: d.label, exercises });
+  }
+
+  return commitWorkoutPlanFromWeekly(
+    weeklyPlan,
+    `Workout split replaced (${weeklyPlan.length} days). ${reason}`
+  );
 }
 
 /** Direct calls from proactive rules (same persistence as tool). */

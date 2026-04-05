@@ -9,6 +9,8 @@ import SettingsPage from '@/components/SettingsPage';
 import GoalCompletion from '@/components/GoalCompletion';
 import Achievements from '@/components/Achievements';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect } from 'react';
+import { ensureWgerExerciseDb } from '@/services/wgerExerciseDb';
 
 const pages: Record<string, React.FC> = {
   home: ModeSelection,
@@ -24,6 +26,10 @@ const pages: Record<string, React.FC> = {
 
 const Index = () => {
   const currentPage = useAppStore((s) => s.currentPage);
+
+  useEffect(() => {
+    void ensureWgerExerciseDb();
+  }, []);
 
   // 🔥 SAFE FALLBACK
   const safePage = currentPage && pages[currentPage] ? currentPage : "home";

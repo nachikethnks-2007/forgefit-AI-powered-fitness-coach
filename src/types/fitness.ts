@@ -50,6 +50,23 @@ export interface FoodEntry {
   timestamp: number;
 }
 
+export type ForgefitExerciseCategory = 'push' | 'pull' | 'legs' | 'core';
+
+export interface ForgefitCachedExercise {
+  id: number;
+  name: string;
+  category: ForgefitExerciseCategory;
+  muscles: string[];
+  musclesSecondary: string[];
+  equipment: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+}
+
+export interface ForgefitExerciseDbCache {
+  fetchedAt: number;
+  exercises: ForgefitCachedExercise[];
+}
+
 export interface Exercise {
   name: string;
   sets: number;
@@ -57,6 +74,8 @@ export interface Exercise {
   weight?: number;
   restSeconds: number;
   formTip: string;
+  /** wger exerciseinfo id when sourced from ForgeFit exercise DB */
+  wgerExerciseId?: number;
 }
 
 export interface WorkoutDay {
