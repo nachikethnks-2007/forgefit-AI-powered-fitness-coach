@@ -172,28 +172,56 @@ export async function callGroqWithTools(
     }
 
     const data: GroqResponse = await res.json();
-    const msg = data.choices?.[0]?.message;
-    if (!msg) break;
+    const message = data.choices?.[0]?.message;
+    if (!message) break;
 
-    messages.push(msg);
+    messages.push(message);
 
-    const calls = msg.tool_calls?.filter(t => t.type === 'function') ?? [];
+    // Check for proper tool calls first
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      for (const toolCall of message.tool_calls) {
+        if (toolCall.type === 'function') {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments);
+          const result = executeForgefitTool(toolName, JSON.stringify(toolArgs));
 
-    if (!calls.length) {
-      return { content: msg.content?.trim() || '', toolSummaries };
+          toolSummaries.push(result.summary);
+
+          // Add result as tool response message
+          messages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ ok: result.ok, summary: result.summary }),
+          });
+        }
+      }
+    } else {
+      // Also check if AI returned tool call as raw text (fallback)
+      // Look for pattern <function=toolname>{...}</function> in message.content
+      // If found parse it and execute manually
+      const rawText = message.content || '';
+      const functionMatch = rawText.match(/<function=(\w+)>(.*?)<\/function>/s);
+      if (functionMatch) {
+        const toolName = functionMatch[1];
+        const toolArgs = JSON.parse(functionMatch[2]);
+        const result = executeForgefitTool(toolName, JSON.stringify(toolArgs));
+
+        toolSummaries.push(result.summary);
+      }
     }
 
-    for (const tc of calls) {
-      const result = executeForgefitTool(tc.function.name, tc.function.arguments);
-
-      toolSummaries.push(result.summary);
-
-      messages.push({
-        role: 'tool',
-        tool_call_id: tc.id,
-        content: JSON.stringify({ ok: result.ok, summary: result.summary }),
-      });
+    // Check if we have tool calls to continue conversation
+    const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
+    const hasRawFunction = (message.content || '').match(/<function=(\w+)>(.*?)<\/function>/s);
+    
+    if (!hasToolCalls && !hasRawFunction) {
+      return { content: message.content?.trim() || '', toolSummaries };
     }
+  }
+
+  // Dispatch workout plan updated event to re-render immediately
+  if (toolSummaries.length > 0) {
+    window.dispatchEvent(new Event('workoutPlanUpdated'));
   }
 
   return { content: '', toolSummaries };
