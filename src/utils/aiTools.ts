@@ -115,7 +115,8 @@ function cloneWorkoutPlan(p: WorkoutPlan): WorkoutPlan {
 }
 
 function findDay(plan: WorkoutPlan, label: string): WorkoutDay | null {
-  return plan.weeklyPlan.find(d => d.label.toLowerCase() === label.toLowerCase()) || null;
+  const normalizedLabel = label.trim().toLowerCase();
+  return plan.weeklyPlan.find(d => d.label.trim().toLowerCase() === normalizedLabel) || null;
 }
 
 function commit(plan: WorkoutPlan, summary: string): ToolExecutionResult {
@@ -144,6 +145,8 @@ export function executeForgefitTool(name: string, argsJson: string): ToolExecuti
 
 function updateIntensity(args: any): ToolExecutionResult {
   const { workoutPlan } = useAppStore.getState();
+  console.log('DEBUG: localStorage workout plan structure:', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
+  console.log('DEBUG: current workoutPlan from store:', JSON.stringify(workoutPlan, null, 2));
   if (!workoutPlan) return { ok: false, summary: 'No plan' };
 
   const next = cloneWorkoutPlan(workoutPlan);
@@ -163,6 +166,8 @@ function updateIntensity(args: any): ToolExecutionResult {
 
 function replaceExercise(args: any): ToolExecutionResult {
   const { workoutPlan } = useAppStore.getState();
+  console.log('DEBUG: localStorage workout plan structure:', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
+  console.log('DEBUG: current workoutPlan from store:', JSON.stringify(workoutPlan, null, 2));
   if (!workoutPlan) return { ok: false, summary: 'No plan' };
 
   const next = cloneWorkoutPlan(workoutPlan);
@@ -185,6 +190,10 @@ function replaceExercise(args: any): ToolExecutionResult {
 }
 
 function changeSplit(args: any): ToolExecutionResult {
+  console.log('DEBUG: localStorage workout plan structure (before):', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
+  const { workoutPlan } = useAppStore.getState();
+  console.log('DEBUG: current workoutPlan from store (before):', JSON.stringify(workoutPlan, null, 2));
+  
   let parsed;
 
   try {
@@ -193,7 +202,9 @@ function changeSplit(args: any): ToolExecutionResult {
     return { ok: false, summary: 'Invalid JSON' };
   }
 
-  // 🔥 FIX: handle both formats
+  console.log('DEBUG: parsed weekly_plan_json:', JSON.stringify(parsed, null, 2));
+
+  // 🔥 FIX: handle both formats and ensure array structure
   if (!Array.isArray(parsed)) {
     if (Array.isArray(parsed.weeklyPlan)) {
       parsed = parsed.weeklyPlan;
@@ -201,6 +212,8 @@ function changeSplit(args: any): ToolExecutionResult {
       return { ok: false, summary: 'Invalid workout format (expected array)' };
     }
   }
+
+  console.log('DEBUG: final array to process:', JSON.stringify(parsed, null, 2));
 
   const weeklyPlan: WorkoutDay[] = parsed.map((d: any) => ({
     day: d.day,
@@ -217,11 +230,17 @@ function changeSplit(args: any): ToolExecutionResult {
     ),
   }));
 
-  return commit(
+  const result = commit(
     { weeklyPlan, generatedAt: Date.now() },
     'Workout split changed successfully'
   );
+  
+  console.log('DEBUG: localStorage workout plan structure (after):', JSON.stringify(localStorage.getItem('forgefit_workout_plan'), null, 2));
+  console.log('DEBUG: workout plan stored in expected array format');
+  
+  return result;
 }
+
 export function applyNutritionTargetsUpdate(partial: {
   calories: number;
   protein: number;
