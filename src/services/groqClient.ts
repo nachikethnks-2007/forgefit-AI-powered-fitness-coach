@@ -45,7 +45,7 @@ export async function callGroq(
       model: TOOL_MODEL,
       messages,
       temperature: 0.7,
-      max_tokens: 600, // reduced but safe
+      max_tokens: 600,
     }),
   });
 
@@ -126,7 +126,7 @@ export async function callGroqWithTools(
   ];
 
   const toolSummaries: string[] = [];
-  const maxRounds = 2; // reduced from 5
+  const maxRounds = 2;
 
   for (let round = 0; round < maxRounds; round++) {
     const res = await fetch(GROQ_URL, {
@@ -138,7 +138,7 @@ export async function callGroqWithTools(
       body: JSON.stringify({
         model: TOOL_MODEL,
         messages,
-        tools: FORGEFIT_GROQ_TOOLS, // ✅ still enabled
+        tools: FORGEFIT_GROQ_TOOLS,
         tool_choice: 'auto',
         temperature: 0.5,
         max_tokens: 600,
@@ -182,6 +182,55 @@ export async function callGroqWithTools(
   }
 
   return { content: '', toolSummaries };
+}
+
+/* ---------------- WORKOUT GENERATION (ADDED BACK) ---------------- */
+
+export async function generateWorkoutPlan(
+  _apiKey: string,
+  profile: UserProfile
+): Promise<string> {
+
+  const prompt = `
+Create a structured weekly workout plan.
+
+User details:
+- Fitness level: ${profile.fitnessLevel}
+- Training days per week: ${profile.trainingDays}
+- Goal: ${profile.mode}
+- Equipment available: ${profile.equipment}
+
+Return ONLY valid JSON in this format:
+{
+  "weeklyPlan": [
+    {
+      "day": "Monday",
+      "label": "Workout",
+      "exercises": [
+        {
+          "name": "Exercise",
+          "sets": 3,
+          "reps": 10,
+          "weight": 0,
+          "restSeconds": 90,
+          "formTip": "Tip"
+        }
+      ]
+    }
+  ]
+}
+`;
+
+  return await callGroq([
+    {
+      role: 'system',
+      content: 'You are a fitness coach. Return ONLY JSON.',
+    },
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ]);
 }
 
 /* ---------------- OTHER ---------------- */
