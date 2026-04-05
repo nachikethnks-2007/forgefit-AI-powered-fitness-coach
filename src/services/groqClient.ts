@@ -2,10 +2,15 @@ import type { UserProfile, NutritionPlan, ChatMessage } from '@/types/fitness';
 import { buildCompleteNutritionPlan } from '@/utils/calculations';
 import { useAppStore } from '@/store/useAppStore';
 import { FORGEFIT_GROQ_TOOLS, executeForgefitTool } from '@/utils/aiTools';
-import { ensureWgerExerciseDb, getWgerExerciseDbPromptSection } from '@/services/wgerExerciseDb';
+import {
+  ensureWgerExerciseDb,
+  formatExerciseListForPrompt,
+  getRelevantExercisesForChatContext,
+  getRelevantExercisesForWorkoutGeneration,
+} from '@/services/wgerExerciseDb';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const TOOL_MODEL = 'llama-3.3-70b-versatile';
+const TOOL_MODEL = 'openai/gpt-oss-120b';
 
 interface GroqToolCall {
   id: string;
@@ -30,7 +35,7 @@ interface GroqResponse {
 
 export async function callGroq(
   messages: Array<{ role: string; content: string }>,
-  model = 'llama-3.3-70b-versatile'
+  model = 'openai/gpt-oss-120b'
 ): Promise<string> {
   const apiKey = localStorage.getItem('groqApiKey');
 
@@ -89,7 +94,10 @@ function lastFourWeeksWeightTrend(): string {
 }
 
 /** Full coach context + tool instructions for every Groq call that uses tools. */
-export function buildForgeFitAISystemPrompt(extraContext = ''): string {
+export function buildForgeFitAISystemPrompt(
+  extraContext = '',
+  relevantExercisePromptBlock: string
+): string {
   const { profile, nutritionPlan, workoutSessions, workoutPlan } = useAppStore.getState();
   if (!profile || !nutritionPlan) {
     return 'User profile is not loaded.';
@@ -97,7 +105,6 @@ export function buildForgeFitAISystemPrompt(extraContext = ''): string {
 
   const last3 = workoutSessions.slice(-3);
   const modeLabel = { cut: 'Cutting (fat loss)', bulk: 'Bulking (muscle gain)', recomposition: 'Body Recomposition' };
-  const exerciseDb = getWgerExerciseDbPromptSection(42000);
   const planSnippet = workoutPlan
     ? JSON.stringify(workoutPlan.weeklyPlan)
     : 'No workout plan saved yet.';
@@ -128,7 +135,7 @@ ${JSON.stringify(last3)}
 LAST 4 WEEKS WEIGHT TREND
 ${lastFourWeeksWeightTrend()}
 
-${exerciseDb}
+${relevantExercisePromptBlock}
 
 CURRENT WORKOUT PLAN (JSON; updates sync to localStorage forgefit_workout_plan and refresh the Workout Tracker)
 ${planSnippet}
@@ -141,7 +148,7 @@ TOOLS — use when needed, then explain in your reply:
 - Full new split: change_workout_split (weekly_plan_json array with wger_exercise_id per lift)
 - Dashboard: flag_alert
 
-If user gives new measurements call update_body_stats. If nutrition needs adjusting call update_nutrition_targets. If workout intensity needs changing call update_workout_intensity. For exercise swaps or plan edits use the workout tools; never invent exercises outside the database. Always explain what you changed and why. Be direct, motivating, and data-driven.
+If user gives new measurements call update_body_stats. If nutrition needs adjusting call update_nutrition_targets. If workout intensity needs changing call update_workout_intensity. For exercise swaps or plan edits use the workout tools; never invent exercises outside the RELEVANT SUBSET above (full list is local-only). Always explain what you changed and why. Be direct, motivating, and data-driven.
 
 ${extraContext ? `\nEXTRA:\n${extraContext}` : ''}`;
 }
@@ -184,7 +191,26 @@ export async function callGroqWithTools(
 
   await ensureWgerExerciseDb();
 
-  const system = buildForgeFitAISystemPrompt(options?.extraSystemSuffix ?? '');
+  const { profile } = useAppStore.getState();
+  let exerciseBlock = formatExerciseListForPrompt(
+    [],
+    'RELEVANT EXERCISE SUBSET (context)'
+  );
+  if (profile) {
+    const userChunks = conversationMessages.filter((m) => m.role === 'user').slice(-3).map((m) => m.content);
+    const combined = [...userChunks, options?.extraSystemSuffix ?? ''].join('\n');
+    const picks = getRelevantExercisesForChatContext(
+      combined,
+      profile.equipment,
+      profile.fitnessLevel
+    );
+    exerciseBlock = formatExerciseListForPrompt(
+      picks,
+      'RELEVANT EXERCISE SUBSET (top 5 for recent user messages + context; full DB not sent)'
+    );
+  }
+
+  const system = buildForgeFitAISystemPrompt(options?.extraSystemSuffix ?? '', exerciseBlock);
   const messages: GroqMessage[] = [{ role: 'system', content: system }, ...conversationMessages];
 
   const toolSummaries: string[] = [];
@@ -204,6 +230,7 @@ export async function callGroqWithTools(
         tool_choice: 'auto',
         temperature: 0.5,
         max_tokens: 2048,
+        reasoning_effort: 'medium',
       }),
     });
 
@@ -244,7 +271,11 @@ export function calculateNutritionPlan(_apiKey: string, profile: UserProfile): P
 
 export async function generateWorkoutPlan(_apiKey: string, profile: UserProfile): Promise<string> {
   await ensureWgerExerciseDb();
-  const exerciseDb = getWgerExerciseDbPromptSection(55000);
+  const picks = getRelevantExercisesForWorkoutGeneration(profile, 20);
+  const exerciseDb = formatExerciseListForPrompt(
+    picks,
+    'ALLOWED EXERCISES FOR THIS PLAN (max 20; filtered by user equipment + fitness level only)'
+  );
 
   const prompt = `${exerciseDb}
 
@@ -270,15 +301,15 @@ Create a weekly workout plan for this user. Return ONLY valid JSON (no markdown)
 }
 
 Rules:
-- Every exercise MUST include "wger_exercise_id" and "name" copied together from the same row in the WGER database above.
-- ONLY choose exercises appropriate for: ${profile.fitnessLevel} level, ${profile.trainingDays} training days/week, equipment context: ${profile.equipment}, mode: ${profile.mode}.
+- Every exercise MUST include "wger_exercise_id" and "name" copied together from the same row in the allowed list above (max 20 — do not use ids not listed).
+- ONLY choose exercises appropriate for: ${profile.fitnessLevel} level, ${profile.trainingDays} training days/week, equipment: ${profile.equipment}, mode: ${profile.mode}.
 ${profile.injuries ? `- Account for injuries/limitations: ${profile.injuries}` : ''}`;
 
   return await callGroq([
     {
       role: 'system',
       content:
-        'You are an expert workout programmer. Return ONLY valid JSON. Never invent exercises: every movement must come from the WGER list in the user message with matching id and name.',
+        'You are an expert workout programmer. Return ONLY valid JSON. Never invent exercises: every movement must come from the allowed exercise list in the user message with matching id and name.',
     },
     { role: 'user', content: prompt },
   ]);
