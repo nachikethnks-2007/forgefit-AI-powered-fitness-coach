@@ -11,69 +11,11 @@ import { migrateWorkoutPlanData } from "@/utils/forgefitLocalStorage";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // ONLY for controlling app
-  const [apiKey, setApiKey] = useState(
-    () => localStorage.getItem("groqApiKey") || ""
-  );
-
-  // ONLY for typing input
-  const [tempKey, setTempKey] = useState("");
 
   // MIGRATION: Run data migration on app load
   useEffect(() => {
     migrateWorkoutPlanData();
   }, []);
-
-  // API KEY SCREEN
-  if (!apiKey) {
-    return (
-      <div style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#000",
-        color: "#fff",
-        flexDirection: "column"
-      }}>
-        <h2>Enter your Groq API Key</h2>
-
-        <input
-          type="text"
-          value={tempKey}
-          placeholder="Paste your API key..."
-          onChange={(e) => setTempKey(e.target.value)}
-          style={{
-            padding: "10px",
-            margin: "10px",
-            width: "300px",
-            borderRadius: "8px",
-            border: "none",
-            outline: "none"
-          }}
-        />
-
-        <button
-          onClick={() => {
-            if (!tempKey.trim()) return alert("Enter API key");
-
-            localStorage.setItem("groqApiKey", tempKey);
-            window.location.reload();
-          }}
-          style={{
-            padding: "10px 20px",
-            borderRadius: "8px",
-            background: "#00f5ff",
-            color: "#000",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
-        >
-          Save & Continue
-        </button>
-      </div>
-    );
-  }
 
   // ✅ MAIN APP
   return (
