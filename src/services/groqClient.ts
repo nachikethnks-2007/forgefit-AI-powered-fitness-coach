@@ -33,6 +33,7 @@ export async function callGroq(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
   const apiKey = localStorage.getItem('groqApiKey');
+  console.log('API key used:', apiKey?.slice(0, 8) + '...');
   if (!apiKey) throw new Error('Missing API key');
 
   const res = await fetch(GROQ_URL, {
@@ -291,6 +292,8 @@ export function chatMessagesToApiPayload(
 ): Array<{ role: 'user' | 'assistant'; content: string }> {
   return history
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 }
-console.log("api key used:", localStorage.getItem('apikey'))
+
+// Add API key logging for debugging
+console.log('API key used:', localStorage.getItem('groqApiKey')?.slice(0, 8) + '...');

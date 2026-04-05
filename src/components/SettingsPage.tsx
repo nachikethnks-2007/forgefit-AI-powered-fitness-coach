@@ -9,30 +9,31 @@ import { toast } from 'sonner';
 export default function SettingsPage() {
   const store = useAppStore();
   const { profile, nutritionPlan, groqApiKey, setGroqApiKey, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
-  const [apiKey, setApiKey] = useState(groqApiKey || '');
-  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(
+    () => localStorage.getItem('groqApiKey') || ''
+  );
+  const [isEditing, setIsEditing] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
   const handleSaveKey = () => {
-    setGroqApiKey(apiKey);
-    localStorage.setItem('groqApiKey', apiKey);
-    setIsEditingKey(false);
+    localStorage.setItem('groqApiKey', apiKeyInput);
+    setGroqApiKey(apiKeyInput);
+    setIsEditing(false);
     toast.success('API key saved');
-    window.location.reload();
   };
 
   const handleEditKey = () => {
-    setIsEditingKey(true);
+    setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
-    setIsEditingKey(false);
-    setApiKey(groqApiKey || '');
+    setIsEditing(false);
+    setApiKeyInput(groqApiKey || '');
   };
 
   const maskApiKey = (key: string) => {
     if (!key || key.length < 8) return key;
-    return key.slice(0, 3) + '•••••' + key.slice(-4);
+    return key.slice(0, 3) + '••••' + key.slice(-4);
   };
 
   const handleModeChange = (mode: Mode) => {
@@ -65,7 +66,7 @@ export default function SettingsPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-strong rounded-2xl p-6 border-glow">
           <h2 className="font-heading font-bold text-lg mb-3">Groq API Key</h2>
           <p className="text-xs text-muted-foreground mb-3">Required for AI features. Get yours at console.groq.com</p>
-          {!isEditingKey ? (
+          {!isEditing ? (
             <div className="flex items-center gap-2">
               <input 
                 type="password" 
@@ -85,18 +86,19 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <div className="flex gap-2">
                 <input 
-                  type="password" 
-                  value={apiKey} 
-                  onChange={(e) => setApiKey(e.target.value)}
+                  type="text" 
+                  value={apiKeyInput} 
+                  onChange={(e) => setApiKeyInput(e.target.value)}
                   className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                  placeholder="gsk_..." 
+                  placeholder="Paste your Groq API key..."
+                  readOnly={!isEditing}
                 />
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={handleSaveKey} 
                   className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
-                  disabled={!apiKey.trim()}
+                  disabled={!apiKeyInput.trim()}
                 >
                   Save
                 </button>
