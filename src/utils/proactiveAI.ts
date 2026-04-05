@@ -72,6 +72,14 @@ export async function runAfterWorkoutLogged(): Promise<void> {
   const { profile, workoutSessions } = useAppStore.getState();
   if (!profile || workoutSessions.length === 0) return;
 
+  // CRITICAL: Only run proactive workout analysis if last workout was logged in last 5 minutes
+  const lastWorkoutSession = workoutSessions[workoutSessions.length - 1];
+  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+  if (lastWorkoutSession.timestamp < fiveMinutesAgo) {
+    console.log('PROACTIVE: Skipping workout analysis - last workout was more than 5 minutes ago');
+    return;
+  }
+
   sessionStorage.setItem(PROACTIVE_LOCK_WORKOUT, '1');
   try {
     const exerciseSessions = lastThreeSessionsPerExercise(workoutSessions);
@@ -234,7 +242,7 @@ export async function runSundayWeeklyCheckin(): Promise<void> {
   localStorage.setItem(FORGEFIT_SUNDAY_AI_KEY, wk);
 
   try {
-    const userMsg = `Run weekly check-in automatically. Review full week: food logs, workouts, and weight trend. Summarize wins, gaps, and next-week focus. Use tools only if you must change targets or flag alerts; otherwise respond with a clear markdown summary.`;
+    const userMsg = `Run weekly check-in automatically. Review food logs and weight trend only. Do NOT analyze or suggest workout plan changes. Do NOT call any workout modification tools. Summarize wins, gaps, and next-week nutrition focus. Use nutrition tools only if necessary; otherwise respond with a clear markdown summary.`;
 
     const { content, toolSummaries } = await callGroqWithTools([{ role: 'user', content: userMsg }]);
 

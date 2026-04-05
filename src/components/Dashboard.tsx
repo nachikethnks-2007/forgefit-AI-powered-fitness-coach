@@ -30,7 +30,8 @@ export default function Dashboard() {
   const [weightInput, setWeightInput] = useState('');
 
   useEffect(() => {
-    void import('@/utils/proactiveAI').then((m) => m.runSundayWeeklyCheckin());
+    // DISABLED: Automatic weekly checkin was causing workout tool calls on page load
+    // void import('@/utils/proactiveAI').then((m) => m.runSundayWeeklyCheckin());
   }, []);
 
   // Check if target weight reached
