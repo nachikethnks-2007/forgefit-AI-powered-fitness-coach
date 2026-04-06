@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { migrateWorkoutPlanData } from "@/utils/forgefitLocalStorage";
+import { runScheduledAIAnalysis } from "@/utils/proactiveAI";
 
 const queryClient = new QueryClient();
 
@@ -17,7 +18,20 @@ const App = () => {
     migrateWorkoutPlanData();
   }, []);
 
-  // ✅ MAIN APP
+  // AI SCHEDULER: Run scheduled analyses
+  useEffect(() => {
+    // Run scheduled AI analysis on app load (checks if due)
+    runScheduledAIAnalysis();
+    
+    // Set up daily check for scheduled analyses
+    const interval = setInterval(() => {
+      runScheduledAIAnalysis();
+    }, 60 * 60 * 1000); // Check every hour
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // MAIN APP
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

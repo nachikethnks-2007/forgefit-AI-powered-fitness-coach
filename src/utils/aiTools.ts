@@ -2,128 +2,22 @@ import type { NutritionPlan } from '@/types/fitness';
 import { useAppStore } from '@/store/useAppStore';
 import { callGroq } from '@/services/groqClient';
 
-/* ---------------- TOOLS ---------------- */
+/* ---------------- SIMPLIFIED AI TOOLS ---------------- */
 
 export const FORGEFIT_GROQ_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'replace_exercise',
-      description: 'Replace a specific exercise in the workout plan with a different one',
-      parameters: {
-        type: 'object',
-        properties: {
-          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
-          exercise_to_replace: { type: 'string', description: 'Exact name of exercise to remove' },
-          replacement_exercise: { type: 'string', description: 'Name of new exercise' },
-          sets: { type: 'integer', description: 'Number of sets as integer, default 3 if not specified' },
-          reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12, default same as replaced exercise' },
-          muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
-          reason: { type: 'string', description: 'Reason for replacement' },
-        },
-        required: ['day', 'exercise_to_replace', 'replacement_exercise', 'muscleGroup', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'change_workout_split',
-      description: 'Completely regenerate weekly workout plan with different split',
-      parameters: {
-        type: 'object',
-        properties: {
-          new_split: { type: 'string', description: 'Type of split: push_pull_legs, upper_lower, full_body, bro_split' },
-          days_per_week: { type: 'integer', description: 'Number of training days per week' },
-          reason: { type: 'string', description: 'Reason for changing split' },
-        },
-        required: ['new_split', 'days_per_week', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'adjust_exercise_volume',
-      description: 'Change sets and reps for a specific exercise',
-      parameters: {
-        type: 'object',
-        properties: {
-          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
-          exercise_name: { type: 'string', description: 'Exact name of exercise to modify' },
-          new_sets: { type: 'integer', description: 'New number of sets as integer' },
-          new_reps: { type: 'string', description: 'New number of reps as string like 10 or 8-12' },
-          reason: { type: 'string', description: 'Reason for volume adjustment' },
-        },
-        required: ['day', 'exercise_name', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_exercise',
-      description: 'Add a new exercise to a specific day',
-      parameters: {
-        type: 'object',
-        properties: {
-          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
-          exercise_name: { type: 'string', description: 'Name of new exercise to add' },
-          sets: { type: 'integer', description: 'Number of sets as integer, default 3 if not specified' },
-          reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12, default 10 if not specified' },
-          muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
-          reason: { type: 'string', description: 'Reason for adding exercise' },
-        },
-        required: ['day', 'exercise_name', 'muscleGroup', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_exercise',
-      description: 'Remove an exercise from a specific day',
-      parameters: {
-        type: 'object',
-        properties: {
-          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
-          exercise_name: { type: 'string', description: 'Exact name of exercise to remove' },
-          reason: { type: 'string', description: 'Reason for removal' },
-        },
-        required: ['day', 'exercise_name', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'update_workout_intensity',
-      description: 'Increase or decrease weight/reps after workout performance analysis. ONLY call when user explicitly says workout is too easy or too hard',
-      parameters: {
-        type: 'object',
-        properties: {
-          adjustment: { type: 'string', description: 'Type of adjustment: increase, decrease, hold, deload' },
-          percentage: { type: 'number', description: 'Percentage for increase/decrease, default 5 if not specified' },
-          affected_exercises: { type: 'array', items: { type: 'string' }, description: 'Array of exercise names or ["all"] for all exercises' },
-          reason: { type: 'string', description: 'Reason for intensity adjustment' },
-        },
-        required: ['adjustment', 'affected_exercises', 'reason'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'update_nutrition_targets',
-      description: 'Update daily calorie and macro targets when user reports plateau, wants changes, or progress analysis requires adjustment',
+      description: 'Update calories and macros based on user progress',
       parameters: {
         type: 'object',
         properties: {
           calories: { type: 'number', description: 'New daily calorie target' },
-          protein: { type: 'number', description: 'New protein target in grams' },
-          carbs: { type: 'number', description: 'New carbs target in grams' },
-          fats: { type: 'number', description: 'New fats target in grams' },
-          reason: { type: 'string', description: 'Reason for updating nutrition targets' },
+          protein: { type: 'number', description: 'New daily protein target in grams' },
+          carbs: { type: 'number', description: 'New daily carb target in grams' },
+          fats: { type: 'number', description: 'New daily fat target in grams' },
+          reason: { type: 'string', description: 'Why these changes were made' },
         },
         required: ['calories', 'protein', 'carbs', 'fats', 'reason'],
       },
@@ -132,18 +26,53 @@ export const FORGEFIT_GROQ_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'update_body_stats',
-      description: 'Update body stats when user provides new weight or measurements',
+      name: 'replace_exercise',
+      description: 'Replace a specific exercise with easier or harder variation',
       parameters: {
         type: 'object',
         properties: {
-          weight: { type: 'number', description: 'New weight in kg' },
-          neck: { type: 'number', description: 'Neck circumference in cm' },
-          waist: { type: 'number', description: 'Waist circumference in cm' },
-          hip: { type: 'number', description: 'Hip circumference in cm' },
-          reason: { type: 'string', description: 'Reason for updating body stats' },
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_to_replace: { type: 'string', description: 'Exact name of exercise to remove' },
+          replacement_exercise: { type: 'string', description: 'Name of new exercise' },
+          sets: { type: 'integer', description: 'Number of sets, default 3' },
+          reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12' },
+          muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
+          reason: { type: 'string', description: 'Why this exercise was replaced' },
         },
-        required: ['weight', 'reason'],
+        required: ['day', 'exercise_to_replace', 'replacement_exercise', 'muscleGroup', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_exercise_volume',
+      description: 'Change reps for progressive overload',
+      parameters: {
+        type: 'object',
+        properties: {
+          day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
+          exercise_name: { type: 'string', description: 'Exact name of exercise' },
+          new_reps: { type: 'string', description: 'New rep scheme like 12 or 8-12' },
+          reason: { type: 'string', description: 'Why reps were adjusted' },
+        },
+        required: ['day', 'exercise_name', 'new_reps', 'reason'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'change_workout_split',
+      description: 'Change entire workout split structure',
+      parameters: {
+        type: 'object',
+        properties: {
+          new_split: { type: 'string', description: 'Type: push_pull_legs, upper_lower, full_body, bro_split' },
+          days_per_week: { type: 'integer', description: 'Number of training days per week' },
+          reason: { type: 'string', description: 'Why split was changed' },
+        },
+        required: ['new_split', 'days_per_week', 'reason'],
       },
     },
   },
@@ -151,56 +80,34 @@ export const FORGEFIT_GROQ_TOOLS = [
     type: 'function',
     function: {
       name: 'flag_alert',
-      description: 'Send a proactive alert or suggestion to the user on dashboard',
+      description: 'Send alert to user explaining changes and next steps',
       parameters: {
         type: 'object',
         properties: {
-          type: { type: 'string', description: 'Alert type: warning, success, suggestion' },
-          message: { type: 'string', description: 'The alert message to show' },
+          message: { type: 'string', description: 'Clear explanation of what changed and why' },
+          priority: { type: 'string', description: 'high, medium, or low' },
+          focus_area: { type: 'string', description: 'What user should focus on next' },
         },
-        required: ['type', 'message'],
+        required: ['message', 'priority', 'focus_area'],
       },
     },
   },
 ];
 
-/* ---------------- CORE ---------------- */
-
-export interface ToolExecutionResult {
-  ok: boolean;
-  summary: string;
-}
-
-function parseArgs(raw: string): Record<string, unknown> {
-  try {
-    return JSON.parse(raw || '{}');
-  } catch {
-    return {};
-  }
-}
-
 /* ---------------- TOOL EXECUTION ---------------- */
 
-export function executeForgefitTool(name: string, argsJson: string): ToolExecutionResult {
-  const args = parseArgs(argsJson);
+export function executeForgefitTool(name: string, argsJson: string): { ok: boolean; summary: string } {
+  const args = JSON.parse(argsJson);
 
   switch (name) {
-    case 'replace_exercise':
-      return replaceExercise(args);
-    case 'change_workout_split':
-      return changeSplit(args);
-    case 'adjust_exercise_volume':
-      return adjustVolume(args);
-    case 'add_exercise':
-      return addExercise(args);
-    case 'remove_exercise':
-      return removeExercise(args);
-    case 'update_workout_intensity':
-      return updateIntensity(args);
     case 'update_nutrition_targets':
       return updateNutritionTargets(args);
-    case 'update_body_stats':
-      return updateBodyStats(args);
+    case 'replace_exercise':
+      return replaceExercise(args);
+    case 'adjust_exercise_volume':
+      return adjustExerciseVolume(args);
+    case 'change_workout_split':
+      return changeWorkoutSplit(args);
     case 'flag_alert':
       return flagAlert(args);
     default:
@@ -208,313 +115,338 @@ export function executeForgefitTool(name: string, argsJson: string): ToolExecuti
   }
 }
 
-/* ---------------- WORKOUT TOOLS ---------------- */
+function updateNutritionTargets(args: any): { ok: boolean; summary: string } {
+  const { calories, protein, carbs, fats, reason } = args;
+  const { setNutritionPlan } = useAppStore.getState();
 
-function replaceExercise(args: any): ToolExecutionResult {
-  const sets = Number.isInteger(args.sets) ? args.sets : 3;
-  const reps = typeof args.reps === 'string' ? args.reps : '10';
+  try {
+    const currentPlan = useAppStore.getState().nutritionPlan;
+    if (!currentPlan) {
+      return { ok: false, summary: 'No nutrition plan found' };
+    }
 
-  const stored = localStorage.getItem('forgefit_workout_plan');
-  if (!stored) return { ok: false, summary: 'No workout plan found' };
+    const updatedPlan = {
+      ...currentPlan,
+      dailyCalories: calories,
+      protein,
+      carbs,
+      fats,
+    };
 
-  const plan = JSON.parse(stored);
-  const days = plan.weeklyPlan;
-  if (!Array.isArray(days)) return { ok: false, summary: 'Invalid workout plan format' };
+    setNutritionPlan(updatedPlan);
+    localStorage.setItem('forgefit_nutrition_plan', JSON.stringify(updatedPlan));
 
-  const dayIndex = days.findIndex((d: any) =>
-    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
-  );
-  if (dayIndex === -1) return { ok: false, summary: `Day not found: ${args.day}` };
-
-  const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
-    e.name.toLowerCase().trim() === args.exercise_to_replace.toLowerCase().trim()
-  );
-  if (exIndex === -1) return { ok: false, summary: `Exercise not found: ${args.exercise_to_replace}` };
-
-  days[dayIndex].exercises[exIndex] = {
-    name: args.replacement_exercise,
-    sets,
-    reps,
-    targetWeight: 0,
-    muscleGroup: args.muscleGroup,
-    restSeconds: 90,
-    formTip: '',
-  };
-
-  plan.weeklyPlan = days;
-  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
-  window.dispatchEvent(new Event('workoutPlanUpdated'));
-
-  return {
-    ok: true,
-    summary: `✅ Replaced ${args.exercise_to_replace} with ${args.replacement_exercise} on ${args.day}`,
-  };
+    return {
+      ok: true,
+      summary: `✅ Updated nutrition targets: ${calories} calories, ${protein}g protein, ${carbs}g carbs, ${fats}g fats. ${reason}`,
+    };
+  } catch (error) {
+    return { ok: false, summary: 'Failed to update nutrition targets' };
+  }
 }
 
-function changeSplit(args: any): ToolExecutionResult {
-  const { profile } = useAppStore.getState();
-  if (!profile) return { ok: false, summary: 'No profile found' };
+function replaceExercise(args: any): { ok: boolean; summary: string } {
+  const { day, exercise_to_replace, replacement_exercise, sets = 3, reps = '10', muscleGroup, reason } = args;
 
-  const bodyweightList = profile.equipment === 'bodyweight'
-    ? `CRITICAL: Only use these bodyweight exercises: Push-up, Knee Push-up, Wall Push-up, Diamond Push-up, Pike Push-up, Decline Push-up, Pull-up, Chin-up, Inverted Row, Australian Pull-up, Bodyweight Squat, Lunge, Bulgarian Split Squat, Glute Bridge, Hip Thrust, Wall Sit, Calf Raise, Plank, Side Plank, Dead Bug, Hollow Body Hold, Leg Raise, Bicycle Crunch, Tricep Dip using chair, Mountain Climber, Burpee, Jump Squat.`
-    : '';
+  try {
+    const stored = localStorage.getItem('forgefit_workout_plan');
+    const plan = JSON.parse(stored || '{}');
+    const days = plan.weeklyPlan || [];
 
-  const prompt = `Generate a ${args.new_split} workout split for ${args.days_per_week} days per week.
+    const dayIndex = days.findIndex((d: any) =>
+      d.day.toLowerCase().trim() === day.toLowerCase().trim()
+    );
+
+    if (dayIndex === -1) {
+      return { ok: false, summary: `Day "${day}" not found in workout plan` };
+    }
+
+    const exerciseIndex = days[dayIndex].exercises.findIndex((e: any) =>
+      e.name.toLowerCase().trim() === exercise_to_replace.toLowerCase().trim()
+    );
+
+    if (exerciseIndex === -1) {
+      return { ok: false, summary: `Exercise "${exercise_to_replace}" not found on ${day}` };
+    }
+
+    // Replace the exercise
+    days[dayIndex].exercises[exerciseIndex] = {
+      name: replacement_exercise,
+      sets,
+      reps,
+      targetWeight: 0,
+      muscleGroup,
+      restSeconds: 90,
+      formTip: '',
+    };
+
+    plan.weeklyPlan = days;
+    localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+    window.dispatchEvent(new Event('workoutPlanUpdated'));
+
+    return {
+      ok: true,
+      summary: `✅ Replaced "${exercise_to_replace}" with "${replacement_exercise}" on ${day}. ${reason}`,
+    };
+  } catch (error) {
+    return { ok: false, summary: 'Failed to replace exercise' };
+  }
+}
+
+function adjustExerciseVolume(args: any): { ok: boolean; summary: string } {
+  const { day, exercise_name, new_reps, reason } = args;
+
+  try {
+    const stored = localStorage.getItem('forgefit_workout_plan');
+    const plan = JSON.parse(stored || '{}');
+    const days = plan.weeklyPlan || [];
+
+    const dayIndex = days.findIndex((d: any) =>
+      d.day.toLowerCase().trim() === day.toLowerCase().trim()
+    );
+
+    if (dayIndex === -1) {
+      return { ok: false, summary: `Day "${day}" not found in workout plan` };
+    }
+
+    const exerciseIndex = days[dayIndex].exercises.findIndex((e: any) =>
+      e.name.toLowerCase().trim() === exercise_name.toLowerCase().trim()
+    );
+
+    if (exerciseIndex === -1) {
+      return { ok: false, summary: `Exercise "${exercise_name}" not found on ${day}` };
+    }
+
+    // Adjust reps
+    days[dayIndex].exercises[exerciseIndex].reps = new_reps;
+
+    plan.weeklyPlan = days;
+    localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
+    window.dispatchEvent(new Event('workoutPlanUpdated'));
+
+    return {
+      ok: true,
+      summary: `✅ Adjusted "${exercise_name}" reps to ${new_reps} on ${day}. ${reason}`,
+    };
+  } catch (error) {
+    return { ok: false, summary: 'Failed to adjust exercise volume' };
+  }
+}
+
+function changeWorkoutSplit(args: any): { ok: boolean; summary: string } {
+  const { new_split, days_per_week, reason } = args;
+  const { profile, setWorkoutPlan } = useAppStore.getState();
+
+  if (!profile) {
+    return { ok: false, summary: 'No profile found' };
+  }
+
+  try {
+    const prompt = `Generate a ${new_split} workout split for ${days_per_week} days per week.
 User equipment: ${profile.equipment}
 User fitness level: ${profile.fitnessLevel}
-${bodyweightList}
-Return ONLY a valid JSON array, no extra text:
-[
-  {
-    "day": "Monday",
-    "focus": "Upper Body Push",
-    "exercises": [
-      {"name": "Push-up", "sets": 3, "reps": "10", "targetWeight": 0, "muscleGroup": "chest", "restSeconds": 90, "formTip": "Keep core tight"}
-    ]
-  }
-]`;
-
-  callGroq([
-    { role: 'system', content: 'You are a fitness coach. Return ONLY valid JSON array. No markdown, no explanation.' },
-    { role: 'user', content: prompt },
-  ]).then((response) => {
-    try {
-      const clean = response.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-      const parsedArray = JSON.parse(clean);
-      const newPlan = { weeklyPlan: parsedArray, generatedAt: Date.now() };
-      localStorage.setItem('forgefit_workout_plan', JSON.stringify(newPlan));
-      window.dispatchEvent(new Event('workoutPlanUpdated'));
-    } catch {
-      // silent fail
+CRITICAL: If equipment is bodyweight, only use bodyweight exercises.
+Return ONLY valid JSON in this format:
+{
+  "weeklyPlan": [
+    {
+      "day": "Monday",
+      "focus": "Upper Body Push",
+      "exercises": [
+        {"name": "Push-up", "sets": 3, "reps": "10", "targetWeight": 0, "muscleGroup": "chest", "restSeconds": 90, "formTip": ""}
+      ]
     }
-  }).catch(() => {});
+  ],
+  "generatedAt": ${Date.now()}
+}`;
 
-  return { ok: true, summary: `✅ Generating new ${args.new_split} split, please wait a moment...` };
+    callGroq([
+      { role: 'system', content: 'You are a fitness coach. Return ONLY JSON.' },
+      { role: 'user', content: prompt }
+    ]).then(response => {
+      try {
+        const parsed = JSON.parse(response.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+        setWorkoutPlan(parsed);
+        localStorage.setItem('forgefit_workout_plan', JSON.stringify(parsed));
+        window.dispatchEvent(new Event('workoutPlanUpdated'));
+      } catch (error) {
+        console.error('Failed to parse workout plan:', error);
+      }
+    }).catch(error => {
+      console.error('Failed to generate workout plan:', error);
+    });
+
+    return {
+      ok: true,
+      summary: `✅ Changing workout split to ${new_split} (${days_per_week} days/week). ${reason}`,
+    };
+  } catch (error) {
+    return { ok: false, summary: 'Failed to change workout split' };
+  }
 }
 
-function adjustVolume(args: any): ToolExecutionResult {
-  const newSets = Number.isInteger(args.new_sets) ? args.new_sets : undefined;
-  const newReps = typeof args.new_reps === 'string' ? args.new_reps : undefined;
+function flagAlert(args: any): { ok: boolean; summary: string } {
+  const { message, priority, focus_area } = args;
+  const { addForgefitAlert } = useAppStore.getState();
 
-  const stored = localStorage.getItem('forgefit_workout_plan');
-  if (!stored) return { ok: false, summary: 'No workout plan found' };
+  try {
+    addForgefitAlert({
+      id: `ai_${Date.now()}`,
+      type: 'suggestion',
+      message,
+      read: false,
+      createdAt: Date.now(),
+    });
 
-  const plan = JSON.parse(stored);
-  const days = plan.weeklyPlan;
-  if (!Array.isArray(days)) return { ok: false, summary: 'Invalid workout plan format' };
-
-  const dayIndex = days.findIndex((d: any) =>
-    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
-  );
-  if (dayIndex === -1) return { ok: false, summary: `Day not found: ${args.day}` };
-
-  const exIndex = days[dayIndex].exercises.findIndex((e: any) =>
-    e.name.toLowerCase().trim() === args.exercise_name.toLowerCase().trim()
-  );
-  if (exIndex === -1) return { ok: false, summary: `Exercise not found: ${args.exercise_name}` };
-
-  if (newSets !== undefined) days[dayIndex].exercises[exIndex].sets = newSets;
-  if (newReps !== undefined) days[dayIndex].exercises[exIndex].reps = newReps;
-
-  plan.weeklyPlan = days;
-  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
-  window.dispatchEvent(new Event('workoutPlanUpdated'));
-
-  return { ok: true, summary: `✅ Updated ${args.exercise_name} volume on ${args.day}` };
+    return {
+      ok: true,
+      summary: `✅ Alert sent: ${message} (Priority: ${priority}, Focus: ${focus_area})`,
+    };
+  } catch (error) {
+    return { ok: false, summary: 'Failed to send alert' };
+  }
 }
 
-function addExercise(args: any): ToolExecutionResult {
-  const sets = Number.isInteger(args.sets) ? args.sets : 3;
-  const reps = typeof args.reps === 'string' ? args.reps : '10';
+/* ---------------- AUTOMATIC ANALYSIS SYSTEM ---------------- */
 
-  const stored = localStorage.getItem('forgefit_workout_plan');
-  if (!stored) return { ok: false, summary: 'No workout plan found' };
+export async function runBiWeeklyWorkoutAnalysis(): Promise<void> {
+  const lastAnalysis = localStorage.getItem('forgefit_last_workout_analysis');
+  const now = Date.now();
+  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
 
-  const plan = JSON.parse(stored);
-  const days = plan.weeklyPlan;
-  if (!Array.isArray(days)) return { ok: false, summary: 'Invalid workout plan format' };
-
-  const dayIndex = days.findIndex((d: any) =>
-    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
-  );
-  if (dayIndex === -1) return { ok: false, summary: `Day not found: ${args.day}` };
-
-  days[dayIndex].exercises.push({
-    name: args.exercise_name,
-    sets,
-    reps,
-    targetWeight: 0,
-    muscleGroup: args.muscleGroup,
-    restSeconds: 90,
-    formTip: '',
-  });
-
-  plan.weeklyPlan = days;
-  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
-  window.dispatchEvent(new Event('workoutPlanUpdated'));
-
-  return { ok: true, summary: `✅ Added ${args.exercise_name} to ${args.day}` };
-}
-
-function removeExercise(args: any): ToolExecutionResult {
-  const stored = localStorage.getItem('forgefit_workout_plan');
-  if (!stored) return { ok: false, summary: 'No workout plan found' };
-
-  const plan = JSON.parse(stored);
-  const days = plan.weeklyPlan;
-  if (!Array.isArray(days)) return { ok: false, summary: 'Invalid workout plan format' };
-
-  const dayIndex = days.findIndex((d: any) =>
-    d.day.toLowerCase().trim() === args.day.toLowerCase().trim()
-  );
-  if (dayIndex === -1) return { ok: false, summary: `Day not found: ${args.day}` };
-
-  const originalLength = days[dayIndex].exercises.length;
-  days[dayIndex].exercises = days[dayIndex].exercises.filter((e: any) =>
-    e.name.toLowerCase().trim() !== args.exercise_name.toLowerCase().trim()
-  );
-
-  if (days[dayIndex].exercises.length === originalLength) {
-    return { ok: false, summary: `Exercise not found: ${args.exercise_name}` };
+  // Only run if 14 days have passed since last analysis
+  if (lastAnalysis && (now - parseInt(lastAnalysis)) < fourteenDays) {
+    return;
   }
 
-  plan.weeklyPlan = days;
-  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
-  window.dispatchEvent(new Event('workoutPlanUpdated'));
+  const { profile, workoutSessions, workoutPlan } = useAppStore.getState();
+  if (!profile || !workoutPlan || !workoutSessions.length) return;
 
-  return { ok: true, summary: `✅ Removed ${args.exercise_name} from ${args.day}` };
+  try {
+    // Get last 14 days of workout sessions
+    const fourteenDaysAgo = now - fourteenDays;
+    const recentSessions = workoutSessions.filter(s => s.timestamp > fourteenDaysAgo);
+
+    if (recentSessions.length === 0) return;
+
+    // Analyze exercise performance
+    const exerciseAnalysis = analyzeExerciseProgress(recentSessions, workoutPlan);
+    
+    // Generate AI recommendations
+    const prompt = `Analyze this workout data from the last 14 days and suggest progressive improvements:
+
+User: ${profile.name}, Level: ${profile.fitnessLevel}, Equipment: ${profile.equipment}
+
+Recent Workout Sessions: ${JSON.stringify(recentSessions.slice(0, 5))}
+
+Exercise Performance Analysis: ${JSON.stringify(exerciseAnalysis)}
+
+RULES:
+1. If user completes all reps easily → increase reps by 5-10
+2. If user struggles → reduce difficulty OR replace with easier variation  
+3. If user consistently progressing → upgrade to harder variation
+4. Only modify exercises, NOT calories or macros
+5. Use the available tools to make changes
+6. Send a flag_alert explaining what changed and why
+
+Focus on safe, progressive improvements. Be conservative with changes.`;
+
+    const response = await callGroq([
+      { role: 'system', content: 'You are a fitness AI coach. Use tools to make progressive improvements to workouts.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    // Mark analysis as completed
+    localStorage.setItem('forgefit_last_workout_analysis', now.toString());
+    
+  } catch (error) {
+    console.error('Bi-weekly workout analysis failed:', error);
+  }
 }
 
-function updateIntensity(args: any): ToolExecutionResult {
-  const percentage = typeof args.percentage === 'number' ? args.percentage : 5;
+export async function runMonthlyNutritionAnalysis(): Promise<void> {
+  const lastAnalysis = localStorage.getItem('forgefit_last_nutrition_analysis');
+  const now = Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
 
-  const stored = localStorage.getItem('forgefit_workout_plan');
-  if (!stored) return { ok: false, summary: 'No workout plan found' };
+  // Only run if 30 days have passed since last analysis
+  if (lastAnalysis && (now - parseInt(lastAnalysis)) < thirtyDays) {
+    return;
+  }
 
-  const plan = JSON.parse(stored);
-  const days = plan.weeklyPlan;
-  if (!Array.isArray(days)) return { ok: false, summary: 'Invalid workout plan format' };
+  const { profile, nutritionPlan, measurements } = useAppStore.getState();
+  if (!profile || !nutritionPlan || !measurements.length) return;
 
-  days.forEach((day: any) => {
-    day.exercises.forEach((exercise: any) => {
-      const shouldUpdate =
-        args.affected_exercises.includes('all') ||
-        args.affected_exercises.some((name: string) =>
-          name.toLowerCase().trim() === exercise.name.toLowerCase().trim()
-        );
+  try {
+    // Get last 4 weeks of weight data
+    const fourWeeksAgo = now - (4 * 7 * 24 * 60 * 60 * 1000);
+    const recentMeasurements = measurements.filter(m => new Date(m.date).getTime() > fourWeeksAgo);
 
-      if (shouldUpdate) {
-        if (args.adjustment === 'increase') {
-          exercise.targetWeight = Math.round(exercise.targetWeight * (1 + percentage / 100));
-        } else if (args.adjustment === 'decrease') {
-          exercise.targetWeight = Math.round(exercise.targetWeight * (1 - percentage / 100));
-        } else if (args.adjustment === 'deload') {
-          exercise.targetWeight = Math.round(exercise.targetWeight * 0.8);
-        }
+    if (recentMeasurements.length < 2) return;
+
+    // Calculate weight change
+    const oldestWeight = recentMeasurements[0].weight;
+    const newestWeight = recentMeasurements[recentMeasurements.length - 1].weight;
+    const weightChange = newestWeight - oldestWeight;
+
+    // Generate AI recommendations
+    const prompt = `Analyze this nutrition data from the last 30 days and suggest adjustments:
+
+User: ${profile.name}, Mode: ${profile.mode}, Current Calories: ${nutritionPlan.dailyCalories}
+
+Weight Change (4 weeks): ${weightChange.toFixed(1)}kg
+${recentMeasurements.map(m => `${m.date}: ${m.weight}kg`).join('\n')}
+
+RULES:
+1. CUT MODE: If weight loss < 2kg/month → increase deficit (reduce calories). If > 4kg/month → decrease deficit (increase calories)
+2. BULK MODE: If weight gain too slow → increase calories. If too fast → reduce calories  
+3. RECOMP MODE: Small adjustments only if needed
+4. When changing calories, adjust protein/carbs/fats proportionally
+5. Keep protein high for muscle retention/growth
+6. Use update_nutrition_targets tool to make changes
+7. Send flag_alert explaining changes and next steps
+
+Focus on sustainable progress. Be conservative with changes.`;
+
+    const response = await callGroq([
+      { role: 'system', content: 'You are a nutrition AI coach. Use tools to optimize calories and macros for the user\'s goals.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    // Mark analysis as completed
+    localStorage.setItem('forgefit_last_nutrition_analysis', now.toString());
+    
+  } catch (error) {
+    console.error('Monthly nutrition analysis failed:', error);
+  }
+}
+
+function analyzeExerciseProgress(sessions: any[], workoutPlan: any): any {
+  const analysis: any = {};
+
+  sessions.forEach(session => {
+    session.exercises?.forEach((exercise: any) => {
+      const name = exercise.name;
+      if (!analysis[name]) {
+        analysis[name] = {
+          totalSessions: 0,
+          completedReps: 0,
+          targetReps: 0,
+          successRate: 0,
+        };
       }
+
+      analysis[name].totalSessions++;
+      analysis[name].completedReps += exercise.completedReps || 0;
+      analysis[name].targetReps += parseInt(exercise.targetReps) || 0;
     });
   });
 
-  plan.weeklyPlan = days;
-  localStorage.setItem('forgefit_workout_plan', JSON.stringify(plan));
-  window.dispatchEvent(new Event('workoutPlanUpdated'));
-
-  return { ok: true, summary: `✅ Workout intensity ${args.adjustment}d by ${percentage}%` };
-}
-
-/* ---------------- NUTRITION TOOLS ---------------- */
-
-function updateNutritionTargets(args: any): ToolExecutionResult {
-  const { nutritionPlan, setNutritionPlan } = useAppStore.getState();
-  if (!nutritionPlan) return { ok: false, summary: 'No nutrition plan found' };
-
-  const updated = {
-    ...nutritionPlan,
-    dailyCalories: args.calories,
-    protein: args.protein,
-    carbs: args.carbs,
-    fats: args.fats,
-  };
-
-  setNutritionPlan(updated);
-  window.dispatchEvent(new Event('nutritionUpdated'));
-
-  return {
-    ok: true,
-    summary: `✅ Nutrition updated: ${args.calories} kcal, ${args.protein}g protein, ${args.carbs}g carbs, ${args.fats}g fats. Reason: ${args.reason}`,
-  };
-}
-
-function updateBodyStats(args: any): ToolExecutionResult {
-  const { profile, setProfile } = useAppStore.getState();
-  if (!profile) return { ok: false, summary: 'No profile found' };
-
-  const updated = {
-    ...profile,
-    weight: args.weight ?? profile.weight,
-    neck: args.neck ?? profile.neck,
-    waist: args.waist ?? profile.waist,
-    hip: args.hip ?? profile.hip,
-  };
-
-  setProfile(updated);
-
-  const log = JSON.parse(localStorage.getItem('forgefit_measurements_log') || '[]');
-  log.push({ date: new Date().toISOString(), ...args });
-  localStorage.setItem('forgefit_measurements_log', JSON.stringify(log));
-
-  window.dispatchEvent(new Event('profileUpdated'));
-
-  return {
-    ok: true,
-    summary: `✅ Body stats updated: weight ${args.weight}kg. Reason: ${args.reason}`,
-  };
-}
-
-function flagAlert(args: any): ToolExecutionResult {
-  const alerts = JSON.parse(localStorage.getItem('forgefit_alerts') || '[]');
-  alerts.unshift({
-    type: args.type,
-    message: args.message,
-    date: new Date().toISOString(),
-    read: false,
+  // Calculate success rates
+  Object.keys(analysis).forEach(exercise => {
+    const data = analysis[exercise];
+    data.successRate = data.targetReps > 0 ? (data.completedReps / data.targetReps) * 100 : 0;
   });
-  localStorage.setItem('forgefit_alerts', JSON.stringify(alerts));
-  window.dispatchEvent(new Event('newAlert'));
 
-  return {
-    ok: true,
-    summary: `✅ Alert created: ${args.message}`,
-  };
-}
-
-/* ---------------- NUTRITION PLAN HELPER ---------------- */
-
-export function applyNutritionTargetsUpdate(partial: {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  reason: string;
-}) {
-  const { nutritionPlan, setNutritionPlan } = useAppStore.getState();
-
-  if (!nutritionPlan) {
-    return { ok: false, summary: 'No nutrition plan found' };
-  }
-
-  const updated = {
-    ...nutritionPlan,
-    dailyCalories: partial.calories,
-    protein: partial.protein,
-    carbs: partial.carbs,
-    fats: partial.fats,
-  };
-
-  setNutritionPlan(updated);
-
-  return {
-    ok: true,
-    summary: `Nutrition updated: ${partial.calories} kcal`,
-  };
+  return analysis;
 }
