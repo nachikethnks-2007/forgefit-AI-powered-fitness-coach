@@ -119,6 +119,17 @@ SIMPLIFIED AI COACH RULES:
 7. Always use flag_alert to explain changes and next steps
 8. Be conservative and prioritize safety in all recommendations
 
+CRITICAL: NUMERIC FIELD REQUIREMENTS
+- ALL numeric fields MUST be sent as actual numbers, NOT strings
+- calories: 2000 (not "2000")
+- protein: 150 (not "150") 
+- carbs: 200 (not "200")
+- fats: 65 (not "65")
+- sets: 3 (not "3")
+- days_per_week: 4 (not "4")
+- ONLY reps field can be string (like "10" or "8-12")
+- Failure to send numbers as numbers will cause tool call validation errors
+
 ${extra}
 
 Focus on helping user progressively get stronger and reach their fitness goal efficiently.`;

@@ -13,10 +13,10 @@ export const FORGEFIT_GROQ_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          calories: { type: 'number', description: 'New daily calorie target' },
-          protein: { type: 'number', description: 'New daily protein target in grams' },
-          carbs: { type: 'number', description: 'New daily carb target in grams' },
-          fats: { type: 'number', description: 'New daily fat target in grams' },
+          calories: { type: 'number', description: 'New daily calorie target (must be number, not string)' },
+          protein: { type: 'number', description: 'New daily protein target in grams (must be number, not string)' },
+          carbs: { type: 'number', description: 'New daily carb target in grams (must be number, not string)' },
+          fats: { type: 'number', description: 'New daily fat target in grams (must be number, not string)' },
           reason: { type: 'string', description: 'Why these changes were made' },
         },
         required: ['calories', 'protein', 'carbs', 'fats', 'reason'],
@@ -34,7 +34,7 @@ export const FORGEFIT_GROQ_TOOLS = [
           day: { type: 'string', description: 'Day name like Monday, Tuesday etc' },
           exercise_to_replace: { type: 'string', description: 'Exact name of exercise to remove' },
           replacement_exercise: { type: 'string', description: 'Name of new exercise' },
-          sets: { type: 'integer', description: 'Number of sets, default 3' },
+          sets: { type: 'number', description: 'Number of sets (must be number, not string, default 3)' },
           reps: { type: 'string', description: 'Number of reps as string like 10 or 8-12' },
           muscleGroup: { type: 'string', description: 'Muscle group like chest, back, legs' },
           reason: { type: 'string', description: 'Why this exercise was replaced' },
@@ -69,7 +69,7 @@ export const FORGEFIT_GROQ_TOOLS = [
         type: 'object',
         properties: {
           new_split: { type: 'string', description: 'Type: push_pull_legs, upper_lower, full_body, bro_split' },
-          days_per_week: { type: 'integer', description: 'Number of training days per week' },
+          days_per_week: { type: 'number', description: 'Number of training days per week (must be number, not string)' },
           reason: { type: 'string', description: 'Why split was changed' },
         },
         required: ['new_split', 'days_per_week', 'reason'],
@@ -116,7 +116,13 @@ export function executeForgefitTool(name: string, argsJson: string): { ok: boole
 }
 
 function updateNutritionTargets(args: any): { ok: boolean; summary: string } {
-  const { calories, protein, carbs, fats, reason } = args;
+  // Safely convert numeric values with fallbacks
+  const calories = Number(args.calories) || 2000;
+  const protein = Number(args.protein) || 150;
+  const carbs = Number(args.carbs) || 200;
+  const fats = Number(args.fats) || 65;
+  const reason = args.reason || 'Nutrition targets updated';
+
   const { setNutritionPlan } = useAppStore.getState();
 
   try {
@@ -146,7 +152,14 @@ function updateNutritionTargets(args: any): { ok: boolean; summary: string } {
 }
 
 function replaceExercise(args: any): { ok: boolean; summary: string } {
-  const { day, exercise_to_replace, replacement_exercise, sets = 3, reps = '10', muscleGroup, reason } = args;
+  // Safely convert numeric values with fallbacks
+  const sets = Number(args.sets) || 3;
+  const reps = args.reps || '10';
+  const day = args.day;
+  const exercise_to_replace = args.exercise_to_replace;
+  const replacement_exercise = args.replacement_exercise;
+  const muscleGroup = args.muscleGroup;
+  const reason = args.reason || 'Exercise replaced';
 
   try {
     const stored = localStorage.getItem('forgefit_workout_plan');
@@ -234,7 +247,11 @@ function adjustExerciseVolume(args: any): { ok: boolean; summary: string } {
 }
 
 function changeWorkoutSplit(args: any): { ok: boolean; summary: string } {
-  const { new_split, days_per_week, reason } = args;
+  // Safely convert numeric values with fallbacks
+  const days_per_week = Number(args.days_per_week) || 3;
+  const new_split = args.new_split;
+  const reason = args.reason || 'Workout split changed';
+  
   const { profile, setWorkoutPlan } = useAppStore.getState();
 
   if (!profile) {
