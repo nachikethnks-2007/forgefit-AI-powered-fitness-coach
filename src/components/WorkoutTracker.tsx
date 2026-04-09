@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Play, Check, Loader2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MessageSquare, Plus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { generateWorkoutPlan, callGroqWithTools } from '@/services/groqClient';
 import type { WorkoutDay, LoggedExercise, LoggedSet, Exercise, WorkoutPlan } from '@/types/fitness';
@@ -147,6 +147,26 @@ export default function WorkoutTracker() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 pt-6 space-y-6">
+        {/* Add Workout Split Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 mb-6"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-lg">Workout Splits</h3>
+              <p className="text-muted-foreground text-sm">Create custom workout splits for your training goals</p>
+            </div>
+            <button
+              onClick={() => setCurrentPage('split-builder')}
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Add Workout Split
+            </button>
+          </div>
+        </motion.div>
         {!workoutPlan ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
             <p className="text-muted-foreground mb-4">No workout plan yet. Let AI create one for you!</p>

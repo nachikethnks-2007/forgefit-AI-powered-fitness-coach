@@ -4,6 +4,8 @@ import Onboarding from '@/components/Onboarding';
 import Dashboard from '@/components/Dashboard';
 import AICoach from '@/components/AICoach';
 import WorkoutTracker from '@/components/WorkoutTracker';
+import EnhancedWorkoutTracker from '@/components/EnhancedWorkoutTracker';
+import SplitBuilder from '@/components/SplitBuilder';
 import ProgressHub from '@/components/ProgressHub';
 import SettingsPage from '@/components/SettingsPage';
 import GoalCompletion from '@/components/GoalCompletion';
@@ -18,6 +20,8 @@ const pages: Record<string, React.FC> = {
   dashboard: Dashboard,
   coach: AICoach,
   workouts: WorkoutTracker,
+  'workout-tracker': EnhancedWorkoutTracker,
+  'split-builder': SplitBuilder,
   progress: ProgressHub,
   settings: SettingsPage,
   goalComplete: GoalCompletion,

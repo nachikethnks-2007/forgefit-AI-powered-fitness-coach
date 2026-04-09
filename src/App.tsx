@@ -6,8 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import SplitBuilder from "./components/SplitBuilder.tsx";
+import EnhancedWorkoutTracker from "./components/EnhancedWorkoutTracker.tsx";
 import { migrateWorkoutPlanData } from "@/utils/forgefitLocalStorage";
-import { runScheduledAIAnalysis } from "@/utils/proactiveAI";
+import { runBiWeeklyWorkoutAnalysis } from '@/utils/workoutAnalysis';
 
 const queryClient = new QueryClient();
 
@@ -18,14 +20,14 @@ const App = () => {
     migrateWorkoutPlanData();
   }, []);
 
-  // AI SCHEDULER: Run scheduled analyses
+  // AI SCHEDULER: Run bi-weekly workout analysis
   useEffect(() => {
-    // Run scheduled AI analysis on app load (checks if due)
-    runScheduledAIAnalysis();
+    // Run bi-weekly workout analysis on app load (checks if due)
+    runBiWeeklyWorkoutAnalysis();
     
-    // Set up daily check for scheduled analyses
+    // Set up daily check for workout analysis
     const interval = setInterval(() => {
-      runScheduledAIAnalysis();
+      runBiWeeklyWorkoutAnalysis();
     }, 60 * 60 * 1000); // Check every hour
 
     return () => clearInterval(interval);
@@ -40,6 +42,8 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/split-builder" element={<SplitBuilder />} />
+            <Route path="/workout-tracker" element={<EnhancedWorkoutTracker />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

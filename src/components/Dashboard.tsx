@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import MuscleHeatmap from '@/components/MuscleHeatmap';
 import WeeklyCheckIn from '@/components/WeeklyCheckIn';
 import { computeGoalEta } from '@/utils/goalEta';
+import { runBiWeeklyWorkoutAnalysis, getDefaultInsight } from '@/utils/workoutAnalysis';
 
 const modeIcons = { cut: Flame, bulk: Dumbbell, recomposition: Scale };
 const modeColors = { cut: 'text-orange-400', bulk: 'text-primary', recomposition: 'text-violet-400' };
@@ -21,13 +22,28 @@ export default function Dashboard() {
     setCurrentPage,
     addFoodEntry,
     addMeasurement,
-    forgefitAlerts,
-    markForgefitAlertRead,
   } = useAppStore();
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [food, setFood] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
   const [goalReached, setGoalReached] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [workoutInsight, setWorkoutInsight] = useState<string | null>(null);
+
+  // Run bi-weekly workout analysis on component mount
+  useEffect(() => {
+    const analyzeWorkouts = async () => {
+      try {
+        const insight = await runBiWeeklyWorkoutAnalysis();
+        if (insight) {
+          setWorkoutInsight(insight);
+        }
+      } catch (error) {
+        console.error('Workout analysis failed:', error);
+      }
+    };
+
+    analyzeWorkouts();
+  }, []);
 
   useEffect(() => {
     // DISABLED: Automatic weekly checkin was causing workout tool calls on page load
@@ -76,8 +92,6 @@ export default function Dashboard() {
 
   const weightData = measurements.slice(-14).map((m) => ({ date: m.date.slice(5), weight: m.weight }));
 
-  const unreadAlerts = forgefitAlerts.filter((a) => !a.read);
-  const latestInsight = unreadAlerts[0];
   const goalEta = computeGoalEta(profile, measurements);
 
   const handleLogWeight = () => {
@@ -149,31 +163,22 @@ export default function Dashboard() {
         </div>
 
         {/* AI Insights */}
-        <motion.button
-          type="button"
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          onClick={() => latestInsight && markForgefitAlertRead(latestInsight.id)}
-          className="w-full text-left glass-strong rounded-2xl p-5 border-glow relative"
+          className="glass-strong rounded-2xl p-5 border-glow"
         >
-          {unreadAlerts.length > 0 && (
-            <span className="absolute top-3 right-3 min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-              {unreadAlerts.length}
-            </span>
-          )}
           <div className="flex items-start gap-3">
             <Bell className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <h2 className="font-heading font-bold text-lg mb-1">AI Insights</h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {latestInsight
-                  ? latestInsight.message
-                  : 'All good! Keep logging your workouts and meals.'}
+                {workoutInsight || getDefaultInsight()}
               </p>
             </div>
           </div>
-        </motion.button>
+        </motion.div>
 
         {/* Goal ETA */}
         <motion.div
@@ -329,7 +334,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           {[
             { icon: MessageSquare, label: 'AI Coach', page: 'coach', desc: 'Nutrition advice' },
-            { icon: Activity, label: 'Workouts', page: 'workouts', desc: 'Train & log' },
+            { icon: Activity, label: 'Workouts', page: 'workout-tracker', desc: 'Train & log' },
+            { icon: Plus, label: 'Split Builder', page: 'split-builder', desc: 'Create splits' },
             { icon: TrendingUp, label: 'Progress', page: 'progress', desc: 'Charts & PRs' },
             { icon: Utensils, label: 'Settings', page: 'settings', desc: 'Edit profile' },
           ].map((nav) => (
