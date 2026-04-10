@@ -59,6 +59,28 @@ export function calculateBodyFatPercent(
   return Math.round(bf * 10) / 10;
 }
 
+// ✅ ADDED BACK (FIXES YOUR ERROR)
+export function bodyFatForMeasurement(
+  profile: UserProfile,
+  m: BodyMeasurement
+): number | null {
+  const neck = m.neck ?? profile.neck;
+  const waist = m.waist ?? profile.waist;
+  const hip = m.hip ?? profile.hip;
+
+  if (!neck || !waist) return null;
+  if (profile.sex === 'female' && !hip) return null;
+
+  return calculateBodyFatPercent(
+    profile.sex,
+    profile.height,
+    neck,
+    waist,
+    hip,
+    profile.units
+  );
+}
+
 export function calculateBmr(
   weightKg: number,
   heightCm: number,
@@ -123,7 +145,6 @@ export function calculateMacrosFromCaloriesAndMode(
 
   if (remaining < 0) remaining = 0;
 
-  // minimum fat safeguard
   const minFatGrams = Math.round(weightKg * 0.6);
 
   let fats = Math.round((remaining * 0.3) / 9);
@@ -196,7 +217,6 @@ export function buildCompleteNutritionPlan(
   };
 }
 
-// ✅ REQUIRED FOR YOUR STORE (FIXES BUILD ERROR)
 export function recalculateFullNutritionPreservingMode(
   profile: UserProfile,
   previousPlan: NutritionPlan | null
