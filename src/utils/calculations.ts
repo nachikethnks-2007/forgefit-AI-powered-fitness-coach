@@ -59,7 +59,7 @@ export function calculateBodyFatPercent(
   return Math.round(bf * 10) / 10;
 }
 
-// ✅ ADDED BACK (FIXES YOUR ERROR)
+// ✅ ADDED BACK
 export function bodyFatForMeasurement(
   profile: UserProfile,
   m: BodyMeasurement
@@ -217,6 +217,39 @@ export function buildCompleteNutritionPlan(
   };
 }
 
+// ✅ ADDED BACK
+export function recalculateNutritionFromSavedTdee(
+  existing: NutritionPlan,
+  profile: UserProfile
+): NutritionPlan {
+  const weightKg = toKg(profile.weight, profile.units);
+
+  const dailyCalories = calorieTargetFromTdee(
+    existing.tdee,
+    profile.mode
+  );
+
+  const { protein, carbs, fats } =
+    calculateMacrosFromCaloriesAndMode(
+      dailyCalories,
+      profile.mode,
+      weightKg,
+      existing.bodyFatPercent || 25
+    );
+
+  return {
+    bodyFatPercent: existing.bodyFatPercent,
+    bmr: existing.bmr,
+    tdee: existing.tdee,
+    dailyCalories,
+    protein,
+    carbs,
+    fats,
+    explanation: existing.explanation,
+  };
+}
+
+// ✅ ADDED BACK
 export function recalculateFullNutritionPreservingMode(
   profile: UserProfile,
   previousPlan: NutritionPlan | null
