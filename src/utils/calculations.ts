@@ -41,34 +41,22 @@ export function calculateBodyFatPercent(
   const w = toInchesLinear(waist, units);
   const hi = toInchesLinear(hip || 0, units);
 
-  if (h <= 0 || n <= 0 || w <= 0) return 0;
+  if (h <= 0 || n <= 0 || w <= 0) return 25; // safer fallback
 
   let bf: number;
   if (sex === 'male') {
     const diff = w - n;
-    if (diff <= 0) return 0;
+    if (diff <= 0) return 25;
     bf = 86.01 * Math.log10(diff) - 70.041 * Math.log10(h) + 36.76;
   } else {
     const sum = w + hi - n;
-    if (sum <= 0) return 0;
+    if (sum <= 0) return 25;
     bf = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387;
   }
 
-  if (!Number.isFinite(bf) || bf < 0) return 0;
+  if (!Number.isFinite(bf) || bf < 0) return 25;
   if (bf > 60) return 60;
   return Math.round(bf * 10) / 10;
-}
-
-export function bodyFatForMeasurement(
-  profile: UserProfile,
-  m: BodyMeasurement
-): number | null {
-  const neck = m.neck ?? profile.neck;
-  const waist = m.waist ?? profile.waist;
-  const hip = m.hip ?? profile.hip;
-  if (!neck || !waist) return null;
-  if (profile.sex === 'female' && !hip) return null;
-  return calculateBodyFatPercent(profile.sex, profile.height, neck, waist, hip, profile.units);
 }
 
 export function calculateBmr(weightKg: number, heightCm: number, age: number, sex: Sex): number {
@@ -87,15 +75,17 @@ export function calorieTargetFromTdee(tdee: number, mode: Mode): number {
   return Math.round(tdee);
 }
 
-export function proteinGramsPerKg(mode: Mode): number {
-  if (mode === 'cut') return 2.2;
-  if (mode === 'bulk') return 1.8;
-  return 2.0;
+export function proteinGramsPerKg(mode: Mode, bodyFatPercent: number): number {
+  if (mode === 'cut') {
+    if (bodyFatPercent > 25) return 1.6;
+    if (bodyFatPercent > 18) return 1.8;
+    return 2.2;
+  }
+  if (mode === 'recomp') return 1.8;
+  if (mode === 'bulk') return 1.6;
+  return 1.8;
 }
 
-/**
- * FIXED: Protein now based on Lean Body Mass instead of total weight
- */
 export function calculateMacrosFromCaloriesAndMode(
   dailyCalories: number,
   mode: Mode,
@@ -103,30 +93,40 @@ export function calculateMacrosFromCaloriesAndMode(
   bodyFatPercent: number
 ): { protein: number; carbs: number; fats: number } {
 
-  // ✅ Safe body fat handling
   let bodyFat = bodyFatPercent / 100;
   if (!Number.isFinite(bodyFat) || bodyFat <= 0 || bodyFat > 0.6) {
-    bodyFat = 0.25; // fallback 25%
+    bodyFat = 0.25;
   }
 
-  // ✅ Lean Body Mass
   const leanBodyMass = weightKg * (1 - bodyFat);
 
-  // ✅ Correct protein calculation
-  const proteinG = Math.round(leanBodyMass * proteinGramsPerKg(mode));
+  const proteinG = Math.round(
+    leanBodyMass * proteinGramsPerKg(mode, bodyFatPercent)
+  );
 
   const proteinCals = proteinG * 4;
   let remaining = dailyCalories - proteinCals;
 
   if (remaining < 0) remaining = 0;
 
-  const carbs = Math.round((remaining * 0.7) / 4);
-  const fats = Math.round((remaining * 0.3) / 9);
+  // ✅ Ensure minimum fats (health)
+  const minFatGrams = Math.round(weightKg * 0.6);
+  const minFatCals = minFatGrams * 9;
+
+  let fats = Math.round((remaining * 0.3) / 9);
+  fats = Math.max(fats, minFatGrams);
+
+  let fatsCals = fats * 9;
+  let carbsCals = remaining - fatsCals;
+
+  if (carbsCals < 0) carbsCals = 0;
+
+  const carbs = Math.round(carbsCals / 4);
 
   return {
     protein: proteinG,
-    carbs: Math.max(carbs, 0),
-    fats: Math.max(fats, 0),
+    carbs,
+    fats,
   };
 }
 
@@ -163,43 +163,6 @@ export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan 
     carbs,
     fats,
     explanation:
-      'Calculated with US Navy body fat, Mifflin–St Jeor BMR, TDEE from activity, and LBM-based protein.',
-  };
-}
-
-export function recalculateNutritionFromSavedTdee(
-  existing: NutritionPlan,
-  profile: UserProfile
-): NutritionPlan {
-  const weightKg = toKg(profile.weight, profile.units);
-  const dailyCalories = calorieTargetFromTdee(existing.tdee, profile.mode);
-
-  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(
-    dailyCalories,
-    profile.mode,
-    weightKg,
-    existing.bodyFatPercent || 25
-  );
-
-  return {
-    bodyFatPercent: existing.bodyFatPercent,
-    bmr: existing.bmr,
-    tdee: existing.tdee,
-    dailyCalories,
-    protein,
-    carbs,
-    fats,
-    explanation: existing.explanation,
-  };
-}
-
-export function recalculateFullNutritionPreservingMode(
-  profile: UserProfile,
-  previousPlan: NutritionPlan | null
-): NutritionPlan {
-  const next = buildCompleteNutritionPlan(profile);
-  return {
-    ...next,
-    explanation: previousPlan?.explanation ?? next.explanation,
+      'Adaptive protein (LBM-based), Mifflin–St Jeor BMR, activity-based TDEE, and balanced macros with minimum fat intake.',
   };
 }
