@@ -41,7 +41,7 @@ export function calculateBodyFatPercent(
   const w = toInchesLinear(waist, units);
   const hi = toInchesLinear(hip || 0, units);
 
-  if (h <= 0 || n <= 0 || w <= 0) return 25; // safer fallback
+  if (h <= 0 || n <= 0 || w <= 0) return 25;
 
   let bf: number;
   if (sex === 'male') {
@@ -59,23 +59,37 @@ export function calculateBodyFatPercent(
   return Math.round(bf * 10) / 10;
 }
 
-export function calculateBmr(weightKg: number, heightCm: number, age: number, sex: Sex): number {
+export function calculateBmr(
+  weightKg: number,
+  heightCm: number,
+  age: number,
+  sex: Sex
+): number {
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
   return Math.round(sex === 'male' ? base + 5 : base - 161);
 }
 
-export function calculateTdee(bmr: number, activityLevel: ActivityLevel): number {
+export function calculateTdee(
+  bmr: number,
+  activityLevel: ActivityLevel
+): number {
   const m = ACTIVITY_MULTIPLIERS[activityLevel] ?? 1.55;
   return Math.round(bmr * m);
 }
 
-export function calorieTargetFromTdee(tdee: number, mode: Mode): number {
+export function calorieTargetFromTdee(
+  tdee: number,
+  mode: Mode
+): number {
   if (mode === 'cut') return Math.round(tdee - 500);
   if (mode === 'bulk') return Math.round(tdee + 300);
   return Math.round(tdee);
 }
 
-export function proteinGramsPerKg(mode: Mode, bodyFatPercent: number): number {
+export function proteinGramsPerKg(
+  mode: Mode,
+  bodyFatPercent: number
+): number {
   if (mode === 'cut') {
     if (bodyFatPercent > 25) return 1.6;
     if (bodyFatPercent > 18) return 1.8;
@@ -92,8 +106,8 @@ export function calculateMacrosFromCaloriesAndMode(
   weightKg: number,
   bodyFatPercent: number
 ): { protein: number; carbs: number; fats: number } {
-
   let bodyFat = bodyFatPercent / 100;
+
   if (!Number.isFinite(bodyFat) || bodyFat <= 0 || bodyFat > 0.6) {
     bodyFat = 0.25;
   }
@@ -109,14 +123,13 @@ export function calculateMacrosFromCaloriesAndMode(
 
   if (remaining < 0) remaining = 0;
 
-  // ✅ Ensure minimum fats (health)
+  // minimum fat safeguard
   const minFatGrams = Math.round(weightKg * 0.6);
-  const minFatCals = minFatGrams * 9;
 
   let fats = Math.round((remaining * 0.3) / 9);
   fats = Math.max(fats, minFatGrams);
 
-  let fatsCals = fats * 9;
+  const fatsCals = fats * 9;
   let carbsCals = remaining - fatsCals;
 
   if (carbsCals < 0) carbsCals = 0;
@@ -130,7 +143,9 @@ export function calculateMacrosFromCaloriesAndMode(
   };
 }
 
-export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan {
+export function buildCompleteNutritionPlan(
+  profile: UserProfile
+): NutritionPlan {
   const weightKg = toKg(profile.weight, profile.units);
   const heightCm = toCm(profile.height, profile.units);
 
@@ -143,16 +158,30 @@ export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan 
     profile.units
   );
 
-  const bmr = calculateBmr(weightKg, heightCm, profile.age, profile.sex);
-  const tdee = calculateTdee(bmr, profile.activityLevel);
-  const dailyCalories = calorieTargetFromTdee(tdee, profile.mode);
-
-  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(
-    dailyCalories,
-    profile.mode,
+  const bmr = calculateBmr(
     weightKg,
-    bodyFatPercent
+    heightCm,
+    profile.age,
+    profile.sex
   );
+
+  const tdee = calculateTdee(
+    bmr,
+    profile.activityLevel
+  );
+
+  const dailyCalories = calorieTargetFromTdee(
+    tdee,
+    profile.mode
+  );
+
+  const { protein, carbs, fats } =
+    calculateMacrosFromCaloriesAndMode(
+      dailyCalories,
+      profile.mode,
+      weightKg,
+      bodyFatPercent
+    );
 
   return {
     bodyFatPercent,
@@ -164,5 +193,18 @@ export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan 
     fats,
     explanation:
       'Adaptive protein (LBM-based), Mifflin–St Jeor BMR, activity-based TDEE, and balanced macros with minimum fat intake.',
+  };
+}
+
+// ✅ REQUIRED FOR YOUR STORE (FIXES BUILD ERROR)
+export function recalculateFullNutritionPreservingMode(
+  profile: UserProfile,
+  previousPlan: NutritionPlan | null
+): NutritionPlan {
+  const next = buildCompleteNutritionPlan(profile);
+
+  return {
+    ...next,
+    explanation: previousPlan?.explanation ?? next.explanation,
   };
 }
