@@ -24,15 +24,10 @@ export function toCm(height: number, units: Units): number {
   return units === 'imperial' ? height * 2.54 : height;
 }
 
-/** Convert cm or inches to inches (US Navy uses inches). */
 function toInchesLinear(value: number, units: Units): number {
   return units === 'metric' ? value / 2.54 : value;
 }
 
-/**
- * US Navy body fat estimation (neck, waist, hip, height).
- * Log10 form; all circumferences and height converted to inches internally.
- */
 export function calculateBodyFatPercent(
   sex: Sex,
   height: number,
@@ -64,7 +59,6 @@ export function calculateBodyFatPercent(
   return Math.round(bf * 10) / 10;
 }
 
-/** Body fat % for a logged measurement row (falls back to profile circumferences). */
 export function bodyFatForMeasurement(
   profile: UserProfile,
   m: BodyMeasurement
@@ -100,19 +94,35 @@ export function proteinGramsPerKg(mode: Mode): number {
 }
 
 /**
- * After protein (g/kg by mode), remaining calories split 70% carbs / 30% fats.
+ * FIXED: Protein now based on Lean Body Mass instead of total weight
  */
 export function calculateMacrosFromCaloriesAndMode(
   dailyCalories: number,
   mode: Mode,
-  weightKg: number
+  weightKg: number,
+  bodyFatPercent: number
 ): { protein: number; carbs: number; fats: number } {
-  const proteinG = Math.round(weightKg * proteinGramsPerKg(mode));
+
+  // ✅ Safe body fat handling
+  let bodyFat = bodyFatPercent / 100;
+  if (!Number.isFinite(bodyFat) || bodyFat <= 0 || bodyFat > 0.6) {
+    bodyFat = 0.25; // fallback 25%
+  }
+
+  // ✅ Lean Body Mass
+  const leanBodyMass = weightKg * (1 - bodyFat);
+
+  // ✅ Correct protein calculation
+  const proteinG = Math.round(leanBodyMass * proteinGramsPerKg(mode));
+
   const proteinCals = proteinG * 4;
   let remaining = dailyCalories - proteinCals;
+
   if (remaining < 0) remaining = 0;
+
   const carbs = Math.round((remaining * 0.7) / 4);
   const fats = Math.round((remaining * 0.3) / 9);
+
   return {
     protein: proteinG,
     carbs: Math.max(carbs, 0),
@@ -123,6 +133,7 @@ export function calculateMacrosFromCaloriesAndMode(
 export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan {
   const weightKg = toKg(profile.weight, profile.units);
   const heightCm = toCm(profile.height, profile.units);
+
   const bodyFatPercent = calculateBodyFatPercent(
     profile.sex,
     profile.height,
@@ -131,10 +142,17 @@ export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan 
     profile.hip,
     profile.units
   );
+
   const bmr = calculateBmr(weightKg, heightCm, profile.age, profile.sex);
   const tdee = calculateTdee(bmr, profile.activityLevel);
   const dailyCalories = calorieTargetFromTdee(tdee, profile.mode);
-  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(dailyCalories, profile.mode, weightKg);
+
+  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(
+    dailyCalories,
+    profile.mode,
+    weightKg,
+    bodyFatPercent
+  );
 
   return {
     bodyFatPercent,
@@ -145,18 +163,23 @@ export function buildCompleteNutritionPlan(profile: UserProfile): NutritionPlan 
     carbs,
     fats,
     explanation:
-      'Calculated with the US Navy body fat method, Mifflin–St Jeor BMR, TDEE from your activity level, and mode-based calories and macros.',
+      'Calculated with US Navy body fat, Mifflin–St Jeor BMR, TDEE from activity, and LBM-based protein.',
   };
 }
 
-/** Mode switch: keep BMR, TDEE, body fat; recompute daily calories and macros from saved TDEE. */
 export function recalculateNutritionFromSavedTdee(
   existing: NutritionPlan,
   profile: UserProfile
 ): NutritionPlan {
   const weightKg = toKg(profile.weight, profile.units);
   const dailyCalories = calorieTargetFromTdee(existing.tdee, profile.mode);
-  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(dailyCalories, profile.mode, weightKg);
+
+  const { protein, carbs, fats } = calculateMacrosFromCaloriesAndMode(
+    dailyCalories,
+    profile.mode,
+    weightKg,
+    existing.bodyFatPercent || 25
+  );
 
   return {
     bodyFatPercent: existing.bodyFatPercent,
@@ -170,7 +193,6 @@ export function recalculateNutritionFromSavedTdee(
   };
 }
 
-/** Full metabolic recalculation when body measurements / activity / age / sex affecting BMR or Navy BF change. */
 export function recalculateFullNutritionPreservingMode(
   profile: UserProfile,
   previousPlan: NutritionPlan | null
