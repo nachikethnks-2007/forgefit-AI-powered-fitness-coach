@@ -85,13 +85,13 @@ export const useAppStore = create<AppState & AppActions>()(
       addWorkoutSession: (session) => {
         set((s) => ({ workoutSessions: [...s.workoutSessions, session] }));
         queueMicrotask(() => {
-          void import('@/utils/proactiveAI').then((mod) => mod.runAfterWorkoutLogged());
+          void import('@/utils/proactiveAI').then((mod) => mod.runScheduledAIAnalysis());
         });
       },
       addMeasurement: (m) => {
         set((s) => ({ measurements: [...s.measurements, m] }));
         queueMicrotask(() => {
-          void import('@/utils/proactiveAI').then((mod) => mod.runAfterWeightLogged());
+          void import('@/utils/proactiveAI').then((mod) => mod.runScheduledAIAnalysis());
         });
       },
       addChatMessage: (msg) => set((s) => ({ chatHistory: [...s.chatHistory, msg] })),

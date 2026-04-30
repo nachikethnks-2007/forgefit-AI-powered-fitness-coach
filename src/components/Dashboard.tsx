@@ -1,3 +1,4 @@
+import { simulateAdaptiveTdee } from '@/utils/adaptiveActivity';
 import { motion } from 'framer-motion';
 import { Flame, Dumbbell, Scale, Utensils, Activity, TrendingUp, Settings, MessageSquare, Plus, Trophy, Bell } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
@@ -79,6 +80,15 @@ export default function Dashboard() {
 
   const ModeIcon = modeIcons[profile.mode];
 
+let adaptiveData = null;
+
+try {
+  adaptiveData = simulateAdaptiveTdee(profile, workoutSessions);
+  console.log("ADAPTIVE:", adaptiveData);
+} catch (err) {
+  console.error("Adaptive calculation failed:", err);
+}
+
   const macroData = [
     { name: 'Protein', value: consumed.p, target: nutritionPlan.protein, color: '#00d4aa' },
     { name: 'Carbs', value: consumed.c, target: nutritionPlan.carbs, color: '#4a9eff' },
@@ -128,15 +138,18 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen pb-24">
-      {/* Top Bar */}
-      <div className="glass-strong border-b border-border px-4 py-4 sticky top-0 z-40">
+      {/* Header */}
+      <div className="bg-card border-b border-border px-4 py-3 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="gradient-primary p-2 rounded-lg">
-              <ModeIcon className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <ModeIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="font-heading font-bold text-lg gradient-text">ForgeFit</span>
+              <h1 className="font-heading font-bold text-xl">{profile.name}</h1>
+              <p className="text-xs text-muted-foreground">Level {profile.level}</p>
+            </div>
+            <div className="flex items-center gap-1">
               <span className={`ml-2 text-xs font-semibold uppercase ${modeColors[profile.mode]}`}>{profile.mode}</span>
             </div>
           </div>
@@ -154,7 +167,7 @@ export default function Dashboard() {
             { label: 'Protein', value: `${consumed.p}/${nutritionPlan.protein}`, unit: 'g', color: 'text-primary' },
             { label: 'Workouts', value: thisWeekWorkouts, unit: 'this week', color: 'text-primary' },
           ].map((s) => (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-4 text-center">
+            <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card p-4 rounded-2xl shadow-md border border-border text-center">
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className={`text-2xl font-heading font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground">{s.unit}</p>
@@ -167,7 +180,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="glass-strong rounded-2xl p-5 border-glow"
+          className="bg-card p-5 rounded-2xl shadow-md border border-border"
         >
           <div className="flex items-start gap-3">
             <Bell className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -185,7 +198,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="glass-strong rounded-2xl p-5 border-glow"
+          className="bg-card p-5 rounded-2xl shadow-md border border-border"
         >
           <h2 className="font-heading font-bold text-lg mb-2">Goal ETA</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
@@ -199,10 +212,10 @@ export default function Dashboard() {
 
         {/* Nutrition Ring */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="glass-strong rounded-2xl p-6 border-glow">
+          className="bg-card p-6 rounded-2xl shadow-md border border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg">Today's Nutrition</h2>
-            <button onClick={() => setShowFoodModal(true)} className="gradient-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1">
+            <button onClick={() => setShowFoodModal(true)} className="bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1">
               <Plus className="w-4 h-4" /> Log Food
             </button>
           </div>
@@ -246,7 +259,7 @@ export default function Dashboard() {
 
         {/* Body Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="glass-strong rounded-2xl p-6 border-glow">
+          className="bg-card p-6 rounded-2xl shadow-md border border-border">
           <h2 className="font-heading font-bold text-lg mb-4">Body Stats</h2>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
@@ -276,7 +289,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={handleLogWeight}
-              className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold shrink-0"
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold shrink-0"
             >
               Log
             </button>
@@ -286,7 +299,7 @@ export default function Dashboard() {
         {/* Weight Chart */}
         {weightData.length > 1 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-            className="glass-strong rounded-2xl p-6 border-glow">
+            className="bg-card p-6 rounded-2xl shadow-md border border-border">
             <h2 className="font-heading font-bold text-lg mb-4">Weight Trend</h2>
             <div className="h-40">
               <ResponsiveContainer>
@@ -301,35 +314,6 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Goal Reached Banner */}
-        {goalReached && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-strong rounded-2xl p-5 border-glow glow-primary text-center"
-          >
-            <Trophy className="w-10 h-10 text-primary mx-auto mb-2" />
-            <h2 className="font-heading font-bold text-xl gradient-text">Goal Reached!</h2>
-            <p className="text-sm text-muted-foreground mt-1 mb-3">You've hit your target weight. Ready to celebrate?</p>
-            <button
-              onClick={() => setCurrentPage('goalComplete')}
-              className="gradient-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold text-sm"
-            >
-              View Achievement Summary
-            </button>
-          </motion.div>
-        )}
-
-        {/* Muscle Heatmap */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <MuscleHeatmap />
-        </motion.div>
-
-        {/* Weekly Check-In */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <WeeklyCheckIn />
-        </motion.div>
-
         {/* Nav Cards */}
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -337,14 +321,13 @@ export default function Dashboard() {
             { icon: Activity, label: 'Workouts', page: 'workout-tracker', desc: 'Train & log' },
             { icon: Plus, label: 'Split Builder', page: 'split-builder', desc: 'Create splits' },
             { icon: TrendingUp, label: 'Progress', page: 'progress', desc: 'Charts & PRs' },
-            { icon: Utensils, label: 'Settings', page: 'settings', desc: 'Edit profile' },
           ].map((nav) => (
             <motion.button
               key={nav.page}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setCurrentPage(nav.page)}
-              className="glass rounded-xl p-4 text-left group border-glow hover:glow-primary-sm transition-all"
+              className="bg-card p-4 rounded-2xl shadow-md border border-border text-left group hover:bg-accent transition-all"
             >
               <nav.icon className="w-6 h-6 text-primary mb-2" />
               <p className="font-heading font-semibold">{nav.label}</p>
@@ -353,45 +336,6 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
-
-      {/* Food Modal */}
-      {showFoodModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowFoodModal(false)}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="glass-strong rounded-2xl p-6 max-w-sm w-full border-glow" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-heading font-bold text-lg mb-4">Log Food</h3>
-            <div className="space-y-3">
-              <input value={food.name} onChange={(e) => setFood({ ...food, name: e.target.value })}
-                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Food name" />
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { k: 'calories', l: 'Calories' }, { k: 'protein', l: 'Protein (g)' },
-                  { k: 'carbs', l: 'Carbs (g)' }, { k: 'fats', l: 'Fats (g)' },
-                ].map((f) => (
-                  <input key={f.k} type="number" value={(food as any)[f.k]} onChange={(e) => setFood({ ...food, [f.k]: e.target.value })}
-                    className="bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none" placeholder={f.l} />
-                ))}
-              </div>
-              <button onClick={handleAddFood} className="w-full gradient-primary text-primary-foreground py-2 rounded-lg font-semibold text-sm">Add</button>
-            </div>
-            <div className="mt-4">
-              <p className="text-xs text-muted-foreground mb-2">Quick Add</p>
-              <div className="space-y-1">
-                {quickFoods.map((qf) => (
-                  <button key={qf.name} onClick={() => {
-                    addFoodEntry({ id: Date.now().toString(), ...qf, date: today, timestamp: Date.now() });
-                    toast.success(`${qf.name} logged!`);
-                    setShowFoodModal(false);
-                  }} className="w-full text-left text-sm bg-secondary/50 hover:bg-secondary rounded-lg px-3 py-2 flex justify-between">
-                    <span>{qf.name}</span>
-                    <span className="text-muted-foreground">{qf.calories} kcal</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }
