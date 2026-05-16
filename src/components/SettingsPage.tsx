@@ -51,8 +51,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-8">
-      <div className="glass-strong border-b border-border px-4 py-3 sticky top-0 z-40">
+    <div className="min-h-screen pb-8 bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <button onClick={() => setCurrentPage('dashboard')} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
@@ -63,7 +63,7 @@ export default function SettingsPage() {
 
       <div className="max-w-lg mx-auto px-4 pt-6 space-y-6">
         {/* API Key */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-strong rounded-2xl p-6 border-glow">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
           <h2 className="font-heading font-bold text-lg mb-3">Groq API Key</h2>
           <p className="text-xs text-muted-foreground mb-3">Required for AI features. Get yours at console.groq.com</p>
           {!isEditing ? (

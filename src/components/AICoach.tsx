@@ -61,9 +61,9 @@ export default function AICoach() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="glass-strong border-b border-border px-4 py-3 sticky top-0 z-40">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <button onClick={() => setCurrentPage('dashboard')} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
@@ -76,7 +76,7 @@ export default function AICoach() {
 
       {/* Context card */}
       <div className="max-w-2xl mx-auto w-full px-4 pt-3">
-        <div className="glass rounded-xl px-4 py-3 flex justify-between text-xs text-muted-foreground">
+        <div className="bg-white rounded-xl px-4 py-3 flex justify-between text-xs text-muted-foreground shadow-sm border border-gray-200">
           <span>{profile.mode.toUpperCase()} · {nutritionPlan.dailyCalories} kcal</span>
           <span>Left: {nutritionPlan.dailyCalories - consumed.cal} kcal · {nutritionPlan.protein - consumed.p}g P</span>
         </div>
@@ -90,7 +90,7 @@ export default function AICoach() {
             <div className="flex flex-wrap gap-2 justify-center mt-4">
               {['Why these macros?', 'Meal ideas for today', 'Am I eating enough protein?', "I'm not losing weight"].map((q) => (
                 <button key={q} onClick={() => setInput(q)}
-                  className="bg-secondary text-secondary-foreground px-3 py-1.5 rounded-lg text-xs hover:bg-secondary/80 transition-colors">{q}</button>
+                  className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors">{q}</button>
               ))}
             </div>
           </div>
@@ -100,12 +100,12 @@ export default function AICoach() {
           <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'plan_update' ? (
-              <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed glass-strong border-2 border-cyan-400">
+              <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-white border-2 border-cyan-400 shadow-sm">
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
             ) : (
             <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-              msg.role === 'user' ? 'gradient-primary text-primary-foreground' : 'glass-strong border-glow'
+              msg.role === 'user' ? 'gradient-primary text-primary-foreground' : 'bg-white border border-gray-200 shadow-sm'
             }`}>
               {msg.role === 'user' ? (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -113,7 +113,7 @@ export default function AICoach() {
                 <ReactMarkdown
                   className="[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
                   components={{
-                    strong: ({ children }) => <strong className="text-cyan-400 font-semibold">{children}</strong>,
+                    strong: ({ children }) => <strong className="text-primary font-semibold">{children}</strong>,
                   }}
                 >
                   {msg.content}
@@ -126,7 +126,7 @@ export default function AICoach() {
 
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-            <div className="glass-strong border-glow rounded-2xl px-4 py-3 animate-pulse-glow">
+            <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2 text-primary text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" /> AI is thinking...
               </div>
@@ -137,7 +137,7 @@ export default function AICoach() {
       </div>
 
       {/* Input */}
-      <div className="glass-strong border-t border-border px-4 py-3 sticky bottom-0">
+      <div className="bg-white border-t border-gray-200 px-4 py-3 sticky bottom-0 shadow-sm">
         <div className="max-w-2xl mx-auto flex gap-2">
           <input
             value={input}

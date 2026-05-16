@@ -77,7 +77,7 @@ export default function ProgressHub() {
   const effectiveProfile = (lsProfile?.profile ?? profile) as UserProfile | null;
   const effectivePlan = lsProfile?.nutritionPlan ?? nutritionPlan;
 
-  const chartStyle = { background: 'transparent', border: 'none', borderRadius: 8 };
+  const chartStyle = { background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' };
 
   const calorieTarget = effectivePlan?.dailyCalories ?? nutritionPlan?.dailyCalories ?? 0;
   const proteinTarget = effectivePlan?.protein ?? nutritionPlan?.protein ?? 0;
@@ -205,8 +205,8 @@ export default function ProgressHub() {
     'Complete workouts in the Workout Tracker to populate forgefit_workout_sessions for volume and personal records.';
 
   return (
-    <div className="min-h-screen pb-8">
-      <div className="glass-strong border-b border-border px-4 py-3 sticky top-0 z-40">
+    <div className="min-h-screen pb-8 bg-gray-50">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <button onClick={() => setCurrentPage('dashboard')} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
@@ -216,17 +216,17 @@ export default function ProgressHub() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 pt-6 space-y-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-strong rounded-2xl p-6 border-glow">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
           <h2 className="font-heading font-bold text-lg mb-4">Weight Over Time</h2>
           {weightData.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weightData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis domain={['auto', 'auto']} tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <Tooltip contentStyle={chartStyle} />
-                  <Line type="monotone" dataKey="weight" stroke="#00d4aa" strokeWidth={2} dot={{ r: 3, fill: '#00d4aa' }} />
+                  <Line type="monotone" dataKey="weight" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3, fill: '#7c3aed' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -239,18 +239,18 @@ export default function ProgressHub() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="glass-strong rounded-2xl p-6 border-glow"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200"
         >
           <h2 className="font-heading font-bold text-lg mb-4">Body Fat % Over Time</h2>
           {bfData.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={bfData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis domain={['auto', 'auto']} tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <Tooltip contentStyle={chartStyle} />
-                  <Line type="monotone" dataKey="bf" stroke="#4a9eff" strokeWidth={2} dot={{ r: 3, fill: '#4a9eff' }} />
+                  <Line type="monotone" dataKey="bf" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: '#6366f1' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -263,21 +263,21 @@ export default function ProgressHub() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-strong rounded-2xl p-6 border-glow"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200"
         >
           <h2 className="font-heading font-bold text-lg mb-4">Weekly Calorie Average vs Target</h2>
           {calAvgData.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={calAvgData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="week" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <Tooltip contentStyle={chartStyle} />
                   <ReferenceLine y={calorieTarget} stroke="#6b7280" strokeDasharray="4 4" />
                   <Bar dataKey="avg" radius={[4, 4, 0, 0]}>
                     {calAvgData.map((entry, i) => (
-                      <Cell key={i} fill={entry.within ? '#22c55e' : '#ef4444'} />
+                      <Cell key={i} fill={entry.within ? '#10b981' : '#f59e0b'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -292,19 +292,19 @@ export default function ProgressHub() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass-strong rounded-2xl p-6 border-glow"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200"
         >
           <h2 className="font-heading font-bold text-lg mb-4">Weekly Protein Adherence %</h2>
           {macroAdherenceData.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={macroAdherenceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="week" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} domain={[0, 'auto']} />
                   <Tooltip contentStyle={chartStyle} />
                   <ReferenceLine y={90} stroke="#4a9eff" strokeDasharray="4 4" label={{ value: '90%', fill: '#6b7280', fontSize: 10 }} />
-                  <Bar dataKey="adherence" fill="#00d4aa" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="adherence" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -317,18 +317,18 @@ export default function ProgressHub() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass-strong rounded-2xl p-6 border-glow"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200"
         >
           <h2 className="font-heading font-bold text-lg mb-4">Total Volume per Week</h2>
           {volData.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="week" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <Tooltip contentStyle={chartStyle} />
-                  <Bar dataKey="volume" fill="#00d4aa" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="volume" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -341,13 +341,13 @@ export default function ProgressHub() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass-strong rounded-2xl p-6 border-glow overflow-x-auto"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 overflow-x-auto"
         >
           <h2 className="font-heading font-bold text-lg mb-4">Personal Records</h2>
           {prRows.length > 0 ? (
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="text-muted-foreground border-b border-border">
+                <tr className="text-muted-foreground border-b border-gray-200">
                   <th className="pb-2 pr-2 font-medium">Exercise</th>
                   <th className="pb-2 pr-2 font-medium">Best weight</th>
                   <th className="pb-2 pr-2 font-medium">Date</th>
@@ -356,7 +356,7 @@ export default function ProgressHub() {
               </thead>
               <tbody>
                 {prRows.map((row) => (
-                  <tr key={row.name} className="border-b border-border/60">
+                  <tr key={row.name} className="border-b border-gray-100">
                     <td className="py-2 pr-2">{row.name}</td>
                     <td className="py-2 pr-2 text-primary font-semibold">
                       {row.best} {profile.units === 'metric' ? 'kg' : 'lbs'}
@@ -372,7 +372,7 @@ export default function ProgressHub() {
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-strong rounded-2xl p-6 border-glow">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
           <h2 className="font-heading font-bold text-lg mb-4">Workout Streak</h2>
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: 90 }).map((_, i) => {
@@ -381,7 +381,7 @@ export default function ProgressHub() {
               const dateStr = d.toISOString().split('T')[0];
               const active = workoutDates.has(dateStr);
               return (
-                <div key={i} className={`w-3 h-3 rounded-sm ${active ? 'bg-primary' : 'bg-secondary'}`} title={dateStr} />
+                <div key={i} className={`w-3 h-3 rounded-sm ${active ? 'bg-primary' : 'bg-gray-200'}`} title={dateStr} />
               );
             })}
           </div>

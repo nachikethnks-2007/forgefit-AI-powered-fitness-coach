@@ -201,8 +201,8 @@ export default function SplitBuilder() {
 
   if (!splitType) {
     return (
-      <div className="min-h-screen pb-8">
-        <div className="glass-strong border-b border-border px-4 py-3 sticky top-0 z-40">
+      <div className="min-h-screen pb-8 bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             <button onClick={() => setCurrentPage('workout-tracker')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
@@ -217,7 +217,7 @@ export default function SplitBuilder() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={() => handleSplitSelect('push-pull-legs')}
-              className="glass-card p-6 cursor-pointer hover:scale-[1.02] transition-all"
+              className="bg-white p-6 cursor-pointer hover:scale-[1.02] transition-all shadow-sm border border-gray-200"
             >
               <div className="flex items-center gap-4">
                 <Users className="w-8 h-8 text-blue-500" />
@@ -233,7 +233,7 @@ export default function SplitBuilder() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               onClick={() => handleSplitSelect('upper-lower')}
-              className="glass-card p-6 cursor-pointer hover:scale-[1.02] transition-all"
+              className="bg-white p-6 cursor-pointer hover:scale-[1.02] transition-all shadow-sm border border-gray-200"
             >
               <div className="flex items-center gap-4">
                 <Activity className="w-8 h-8 text-green-500" />
@@ -249,7 +249,7 @@ export default function SplitBuilder() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
               onClick={() => handleSplitSelect('custom')}
-              className="glass-card p-6 cursor-pointer hover:scale-[1.02] transition-all"
+              className="bg-white p-6 cursor-pointer hover:scale-[1.02] transition-all shadow-sm border border-gray-200"
             >
               <div className="flex items-center gap-4">
                 <Dumbbell className="w-8 h-8 text-purple-500" />
@@ -267,8 +267,8 @@ export default function SplitBuilder() {
 
   if (!selectedDay) {
     return (
-      <div className="min-h-screen pb-8">
-        <div className="glass-strong border-b border-border px-4 py-3 sticky top-0 z-40">
+      <div className="min-h-screen pb-8 bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             <button onClick={() => setSplitType(null)} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
@@ -284,7 +284,7 @@ export default function SplitBuilder() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: weekDays.indexOf(day) * 0.1 }}
-              className="glass-card p-4"
+              className="bg-white p-4 shadow-sm border border-gray-200"
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-lg">{day}</h3>
@@ -326,7 +326,7 @@ export default function SplitBuilder() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="glass-card p-4"
+              className="bg-white p-4 shadow-sm border border-gray-200"
             >
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold">Slot {index + 1}</h4>
@@ -414,9 +414,9 @@ export default function SplitBuilder() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-card max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            className="bg-white max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col shadow-sm border border-gray-200"
           >
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h3 className="font-semibold text-lg">Select Exercise</h3>
               <button
                 onClick={() => setShowExerciseList(false)}
@@ -431,7 +431,7 @@ export default function SplitBuilder() {
                   <button
                     key={exercise.name}
                     onClick={() => selectExercise(exercise)}
-                    className="w-full text-left p-3 glass-card hover:scale-[1.02] transition-all"
+                    className="w-full text-left p-3 bg-white hover:scale-[1.02] transition-all shadow-sm border border-gray-200"
                   >
                     <div className="flex items-center justify-between">
                       <div>

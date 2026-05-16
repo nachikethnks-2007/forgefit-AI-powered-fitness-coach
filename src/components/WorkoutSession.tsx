@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Save } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { useConsistencyStore } from '@/store/consistencyStore';
 import type { WorkoutDay, Exercise as WorkoutExercise } from '@/types/fitness';
 
 interface WorkoutLogEntry {
@@ -18,6 +19,7 @@ interface WorkoutSessionProps {
 
 export default function WorkoutSession({ day }: WorkoutSessionProps) {
   const { setCurrentPage } = useAppStore();
+  const { recordWorkout } = useConsistencyStore();
   const [logEntries, setLogEntries] = useState<WorkoutLogEntry[]>(() => {
     return day.exercises.map(exercise => ({
       exerciseName: exercise.name,
@@ -59,6 +61,9 @@ export default function WorkoutSession({ day }: WorkoutSessionProps) {
     // Save to localStorage
     const updatedLogs = [...newLogs, ...workoutLogs];
     localStorage.setItem('forgefit_workout_logs', JSON.stringify(updatedLogs));
+
+    // Record workout in consistency tier system
+    recordWorkout(currentDate);
 
     // Debug log before navigation
     console.log("Workout saved, navigating...");

@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 import { toast } from 'sonner';
 import MuscleHeatmap from '@/components/MuscleHeatmap';
 import WeeklyCheckIn from '@/components/WeeklyCheckIn';
+import ConsistencyTierDisplay from '@/components/ConsistencyTierDisplay';
 import { computeGoalEta } from '@/utils/goalEta';
 import { runBiWeeklyWorkoutAnalysis, getDefaultInsight } from '@/utils/workoutAnalysis';
 
@@ -90,14 +91,14 @@ try {
 }
 
   const macroData = [
-    { name: 'Protein', value: consumed.p, target: nutritionPlan.protein, color: '#00d4aa' },
-    { name: 'Carbs', value: consumed.c, target: nutritionPlan.carbs, color: '#4a9eff' },
-    { name: 'Fats', value: consumed.f, target: nutritionPlan.fats, color: '#ff6b6b' },
+    { name: 'Protein', value: consumed.p, target: nutritionPlan.protein, color: '#7c3aed' },
+    { name: 'Carbs', value: consumed.c, target: nutritionPlan.carbs, color: '#6366f1' },
+    { name: 'Fats', value: consumed.f, target: nutritionPlan.fats, color: '#f59e0b' },
   ];
 
   const calData = [
-    { name: 'Consumed', value: consumed.cal, color: '#00d4aa' },
-    { name: 'Remaining', value: Math.max(calRemaining, 0), color: '#1a2332' },
+    { name: 'Consumed', value: consumed.cal, color: '#7c3aed' },
+    { name: 'Remaining', value: Math.max(calRemaining, 0), color: '#e5e7eb' },
   ];
 
   const weightData = measurements.slice(-14).map((m) => ({ date: m.date.slice(5), weight: m.weight }));
@@ -137,9 +138,9 @@ try {
   ];
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 bg-gray-50">
       {/* Header */}
-      <div className="bg-card border-b border-border px-4 py-3 sticky top-0 z-40">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40 shadow-sm">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
@@ -167,7 +168,7 @@ try {
             { label: 'Protein', value: `${consumed.p}/${nutritionPlan.protein}`, unit: 'g', color: 'text-primary' },
             { label: 'Workouts', value: thisWeekWorkouts, unit: 'this week', color: 'text-primary' },
           ].map((s) => (
-            <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card p-4 rounded-2xl shadow-md border border-border text-center">
+            <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 text-center">
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className={`text-2xl font-heading font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground">{s.unit}</p>
@@ -175,12 +176,21 @@ try {
           ))}
         </div>
 
+        {/* Consistency Tier Display */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
+        >
+          <ConsistencyTierDisplay />
+        </motion.div>
+
         {/* AI Insights */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-card p-5 rounded-2xl shadow-md border border-border"
+          className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200"
         >
           <div className="flex items-start gap-3">
             <Bell className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -198,7 +208,7 @@ try {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="bg-card p-5 rounded-2xl shadow-md border border-border"
+          className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200"
         >
           <h2 className="font-heading font-bold text-lg mb-2">Goal ETA</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
@@ -212,7 +222,7 @@ try {
 
         {/* Nutrition Ring */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-card p-6 rounded-2xl shadow-md border border-border">
+          className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-bold text-lg">Today's Nutrition</h2>
             <button onClick={() => setShowFoodModal(true)} className="bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1">
@@ -236,7 +246,7 @@ try {
                     <span className="text-muted-foreground">{m.name}</span>
                     <span className="text-foreground font-medium">{m.value}g / {m.target}g</span>
                   </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((m.value / m.target) * 100, 100)}%`, backgroundColor: m.color }} />
                   </div>
                 </div>
@@ -248,7 +258,7 @@ try {
           {todayFood.length > 0 && (
             <div className="mt-4 space-y-2">
               {todayFood.map((f) => (
-                <div key={f.id} className="flex justify-between text-sm bg-secondary/50 rounded-lg px-3 py-2">
+                <div key={f.id} className="flex justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
                   <span>{f.name}</span>
                   <span className="text-muted-foreground">{f.calories} kcal</span>
                 </div>
@@ -259,7 +269,7 @@ try {
 
         {/* Body Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-card p-6 rounded-2xl shadow-md border border-border">
+          className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
           <h2 className="font-heading font-bold text-lg mb-4">Body Stats</h2>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
@@ -299,15 +309,15 @@ try {
         {/* Weight Chart */}
         {weightData.length > 1 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-            className="bg-card p-6 rounded-2xl shadow-md border border-border">
+            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
             <h2 className="font-heading font-bold text-lg mb-4">Weight Trend</h2>
             <div className="h-40">
               <ResponsiveContainer>
                 <LineChart data={weightData}>
                   <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="weight" stroke="#00d4aa" strokeWidth={2} dot={false} />
+                  <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }} />
+                  <Line type="monotone" dataKey="weight" stroke="#7c3aed" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -327,7 +337,7 @@ try {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setCurrentPage(nav.page)}
-              className="bg-card p-4 rounded-2xl shadow-md border border-border text-left group hover:bg-accent transition-all"
+              className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 text-left group hover:bg-gray-50 transition-all"
             >
               <nav.icon className="w-6 h-6 text-primary mb-2" />
               <p className="font-heading font-semibold">{nav.label}</p>

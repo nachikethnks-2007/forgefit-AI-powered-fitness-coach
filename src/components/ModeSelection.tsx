@@ -53,7 +53,7 @@ export default function ModeSelection() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-gray-50">
       {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
@@ -74,7 +74,7 @@ export default function ModeSelection() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-strong rounded-xl p-6 mb-8 max-w-md w-full text-center"
+          className="bg-white rounded-xl p-6 mb-8 max-w-md w-full text-center shadow-sm border border-gray-200"
         >
           <p className="text-primary font-heading font-semibold text-lg">Welcome back, {profile.name}!</p>
           <p className="text-muted-foreground text-sm mt-1">
@@ -108,7 +108,7 @@ export default function ModeSelection() {
             whileHover={{ y: -8, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => handleSelectMode(mode.id)}
-            className="glass-strong rounded-2xl p-8 text-left group cursor-pointer border-glow hover:glow-primary transition-all duration-300"
+            className="bg-white rounded-2xl p-8 text-left group cursor-pointer border border-gray-200 hover:shadow-md transition-all duration-300"
           >
             <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
               <mode.icon className="w-7 h-7 text-primary-foreground" />

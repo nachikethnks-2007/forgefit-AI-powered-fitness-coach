@@ -53,7 +53,7 @@ export default function Onboarding() {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-        selected ? 'gradient-primary text-primary-foreground glow-primary-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+        selected ? 'gradient-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
       }`}
     >
       {children}
@@ -61,13 +61,13 @@ export default function Onboarding() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-gray-50">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg w-full">
         {/* Progress */}
         <div className="flex gap-2 mb-8">
           {steps.map((s, i) => (
             <div key={s} className="flex-1">
-              <div className={`h-1 rounded-full transition-all ${i <= step ? 'gradient-primary' : 'bg-secondary'}`} />
+              <div className={`h-1 rounded-full transition-all ${i <= step ? 'gradient-primary' : 'bg-gray-200'}`} />
               <p className={`text-xs mt-1 ${i === step ? 'text-primary' : 'text-muted-foreground'}`}>{s}</p>
             </div>
           ))}
@@ -80,7 +80,7 @@ export default function Onboarding() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }}
             transition={{ duration: 0.3 }}
-            className="glass-strong rounded-2xl p-8"
+            className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200"
           >
             {step === 0 && (
               <div className="space-y-5">

@@ -41,7 +41,7 @@ const Index = () => {
   const PageComponent = pages[safePage];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#000" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={safePage}
