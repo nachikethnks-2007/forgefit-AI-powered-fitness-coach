@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Sparkles, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { callGroqWithTools } from '@/services/groqClient';
+import { getAICoachResponse } from '@/services/aiService';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
@@ -23,13 +23,6 @@ export default function WeeklyCheckIn() {
   const weekMeasurements = measurements.filter(m => new Date(m.date) >= weekAgo);
 
   const generateReview = async () => {
-    const apiKey = localStorage.getItem("groqApiKey");
-
-    if (!apiKey) {
-      toast.error('Add your Groq API key in Settings first');
-      return;
-    }
-
     setLoading(true);
     setOpen(true);
 
@@ -67,16 +60,16 @@ Generate a comprehensive weekly review with:
 `;
 
     try {
-      const { content, toolSummaries } = await callGroqWithTools(
+      const { content, toolSummaries } = await getAICoachResponse(
         [{ role: 'user', content: context }],
         {
-          extraSystemSuffix:
-            'You are doing a weekly performance review. Follow the numbered sections requested in the user message. Use tools if you change targets, body stats, workouts, or alerts.',
+          profile,
+          nutritionPlan,
         }
       );
 
       setReview(
-        [toolSummaries.length ? `**Updates:**\n${toolSummaries.map((s) => `- ${s}`).join('\n')}` : '', content]
+        [toolSummaries && toolSummaries.length ? `**Updates:**\n${toolSummaries.map((s) => `- ${s}`).join('\n')}` : '', content]
           .filter(Boolean)
           .join('\n\n')
       );

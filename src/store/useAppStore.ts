@@ -40,7 +40,6 @@ interface AppActions {
   addChatMessage: (msg: ChatMessage) => void;
   clearChatHistory: () => void;
   completeGoal: (goal: CompletedGoal) => void;
-  setGroqApiKey: (key: string) => void;
   setCurrentPage: (page: string) => void;
   resetAll: () => void;
   addForgefitAlert: (alert: ForgefitAlert) => void;
@@ -56,7 +55,6 @@ const initialState: AppState = {
   measurements: [],
   chatHistory: [],
   completedGoals: [],
-  groqApiKey: '',
   currentPage: 'home',
   forgefitAlerts: [],
 };
@@ -108,7 +106,6 @@ export const useAppStore = create<AppState & AppActions>()(
         forgefitAlerts: [],
         currentPage: 'home',
       })),
-      setGroqApiKey: (key) => set({ groqApiKey: key }),
       setCurrentPage: (page) => set({ currentPage: page }),
       resetAll: () => set({ ...initialState }),
       addForgefitAlert: (alert) =>

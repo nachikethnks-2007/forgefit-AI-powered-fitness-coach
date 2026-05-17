@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { Send, ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '@/store/useAppStore';
-import { callGroqWithTools, chatMessagesToApiPayload } from '@/services/groqClient';
+import { getAICoachResponse, chatMessagesToApiPayload } from '@/services/aiService';
 import { toast } from 'sonner';
 
 export default function AICoach() {
-  const { profile, nutritionPlan, foodLog, chatHistory, addChatMessage, groqApiKey, setCurrentPage } = useAppStore();
+  const { profile, nutritionPlan, foodLog, chatHistory, addChatMessage, setCurrentPage } = useAppStore();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -22,10 +22,6 @@ export default function AICoach() {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    if (!groqApiKey) {
-      toast.error('Please add your Groq API key in Settings');
-      return;
-    }
 
     const userMsg = { role: 'user' as const, content: input, timestamp: Date.now() };
     addChatMessage(userMsg);
@@ -38,11 +34,13 @@ export default function AICoach() {
         : 'No food logged today yet.';
 
       const conversation = chatMessagesToApiPayload(useAppStore.getState().chatHistory);
-      const { content, toolSummaries } = await callGroqWithTools(conversation, {
-        extraSystemSuffix: foodContext,
+      const { content, toolSummaries } = await getAICoachResponse(conversation, {
+        foodContext,
+        profile,
+        nutritionPlan,
       });
 
-      if (toolSummaries.length) {
+      if (toolSummaries && toolSummaries.length) {
         addChatMessage({
           role: 'plan_update',
           content: `⚡ AI Updated Your Plan — ${toolSummaries.join(' · ')}`,
@@ -51,7 +49,7 @@ export default function AICoach() {
       }
       addChatMessage({
         role: 'assistant',
-        content: content || (toolSummaries.length ? 'Changes applied. Let me know if you want to tweak anything.' : ''),
+        content: content || (toolSummaries?.length ? 'Changes applied. Let me know if you want to tweak anything.' : ''),
         timestamp: Date.now(),
       });
     } catch (err: any) {
@@ -110,14 +108,15 @@ export default function AICoach() {
               {msg.role === 'user' ? (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               ) : (
-                <ReactMarkdown
-                  className="[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
-                  components={{
-                    strong: ({ children }) => <strong className="text-primary font-semibold">{children}</strong>,
-                  }}
-                >
-                  {msg.content}
-                </ReactMarkdown>
+                <div className="[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5">
+                  <ReactMarkdown
+                    components={{
+                      strong: ({ children }) => <strong className="text-primary font-semibold">{children}</strong>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
             )}

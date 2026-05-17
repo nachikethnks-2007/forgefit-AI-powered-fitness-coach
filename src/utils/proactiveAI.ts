@@ -1,4 +1,3 @@
-import { useAppStore } from '@/store/useAppStore';
 import { runBiWeeklyWorkoutAnalysis, runMonthlyNutritionAnalysis } from '@/utils/aiTools';
 
 /* ---------------- SCHEDULED AI ANALYSIS ---------------- */
@@ -7,11 +6,6 @@ import { runBiWeeklyWorkoutAnalysis, runMonthlyNutritionAnalysis } from '@/utils
 // Only runs the 2 scheduled analyses: bi-weekly workout and monthly nutrition
 
 export async function runScheduledAIAnalysis(): Promise<void> {
-  const { groqApiKey } = useAppStore.getState();
-  
-  // Only run if API key is available
-  if (!groqApiKey) return;
-
   try {
     // Run bi-weekly workout analysis (every 14 days)
     await runBiWeeklyWorkoutAnalysis();

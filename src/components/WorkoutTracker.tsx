@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Play, Check, Loader2, MessageSquare, Plus } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { generateWorkoutPlan, callGroqWithTools } from '@/services/groqClient';
+import { generateWorkoutPlan, getAICoachResponse, chatMessagesToApiPayload } from '@/services/aiService';
 import type { WorkoutDay, LoggedExercise, LoggedSet, Exercise, WorkoutPlan } from '@/types/fitness';
 import { toast } from 'sonner';
 
@@ -36,7 +36,7 @@ function normalizeGeneratedPlan(raw: { weeklyPlan?: unknown[] }): WorkoutPlan {
 }
 
 export default function WorkoutTracker() {
-  const { profile, nutritionPlan, workoutPlan, setWorkoutPlan, addWorkoutSession, groqApiKey, setCurrentPage, workoutSessions } = useAppStore();
+  const { profile, nutritionPlan, workoutPlan, setWorkoutPlan, addWorkoutSession, setCurrentPage, workoutSessions } = useAppStore();
   const [generating, setGenerating] = useState(false);
   const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
   const [logging, setLogging] = useState(false);
@@ -65,16 +65,13 @@ export default function WorkoutTracker() {
   if (!profile) return null;
 
   const handleGenerate = async () => {
-    if (!groqApiKey) { toast.error('Add Groq API key in Settings'); return; }
     setGenerating(true);
     try {
-      const raw = await generateWorkoutPlan(groqApiKey, profile);
-      const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned) as { weeklyPlan?: unknown[] };
-      setWorkoutPlan(normalizeGeneratedPlan(parsed));
+      const plan = await generateWorkoutPlan(profile);
+      setWorkoutPlan(plan);
       toast.success('Workout plan generated!');
     } catch {
-      toast.error('Failed to generate plan. Check API key.');
+      toast.error('Failed to generate plan. Backend may be unavailable.');
     }
     setGenerating(false);
   };
@@ -114,18 +111,15 @@ export default function WorkoutTracker() {
   };
 
   const askExerciseTip = async (exerciseName: string) => {
-    if (!groqApiKey) { toast.error('Add API key'); return; }
     if (!nutritionPlan) { toast.error('Complete onboarding first'); return; }
     setAskingAI(true);
     try {
-      const { content } = await callGroqWithTools(
-        [
-          {
-            role: 'user',
-            content: `Give me a quick form tip and alternative for "${exerciseName}" with ${profile.equipment} equipment. Be concise. Do not change the workout plan unless truly necessary.`,
-          },
-        ],
-        { extraSystemSuffix: 'Short answer only unless the user needs a plan change.' }
+      const { content } = await getAICoachResponse(
+        [{
+          role: 'user',
+          content: `Give me a quick form tip and alternative for "${exerciseName}" with ${profile.equipment} equipment. Be concise. Do not change the workout plan unless truly necessary.`,
+        }],
+        { profile, nutritionPlan }
       );
       setAiTip(content);
     } catch { toast.error('AI error'); }

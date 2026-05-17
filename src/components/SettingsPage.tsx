@@ -8,33 +8,8 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const store = useAppStore();
-  const { profile, nutritionPlan, groqApiKey, setGroqApiKey, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
-  const [apiKeyInput, setApiKeyInput] = useState(
-    () => localStorage.getItem('groqApiKey') || ''
-  );
-  const [isEditing, setIsEditing] = useState(false);
+  const { profile, nutritionPlan, setCurrentPage, resetAll, setProfile, setNutritionPlan } = store;
   const [showReset, setShowReset] = useState(false);
-
-  const handleSaveKey = () => {
-    localStorage.setItem('groqApiKey', apiKeyInput);
-    setGroqApiKey(apiKeyInput);
-    setIsEditing(false);
-    toast.success('API key saved');
-  };
-
-  const handleEditKey = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setApiKeyInput(groqApiKey || '');
-  };
-
-  const maskApiKey = (key: string) => {
-    if (!key || key.length < 8) return key;
-    return key.slice(0, 3) + '••••' + key.slice(-4);
-  };
 
   const handleModeChange = (mode: Mode) => {
     if (!profile || !nutritionPlan) return;
@@ -62,57 +37,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 pt-6 space-y-6">
-        {/* API Key */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-          <h2 className="font-heading font-bold text-lg mb-3">Groq API Key</h2>
-          <p className="text-xs text-muted-foreground mb-3">Required for AI features. Get yours at console.groq.com</p>
-          {!isEditing ? (
-            <div className="flex items-center gap-2">
-              <input 
-                type="password" 
-                value={maskApiKey(groqApiKey || '')} 
-                readOnly
-                className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                placeholder="No API key set"
-              />
-              <button 
-                onClick={handleEditKey} 
-                className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
-              >
-                Edit
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={apiKeyInput} 
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                  placeholder="Paste your Groq API key..."
-                  readOnly={!isEditing}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={handleSaveKey} 
-                  className="gradient-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
-                  disabled={!apiKeyInput.trim()}
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={handleCancelEdit} 
-                  className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg text-sm font-semibold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
         {/* Mode */}
         {profile && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="glass-strong rounded-2xl p-6 border-glow">

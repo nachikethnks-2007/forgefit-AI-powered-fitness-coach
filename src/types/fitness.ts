@@ -163,7 +163,6 @@ export interface AppState {
   measurements: BodyMeasurement[];
   chatHistory: ChatMessage[];
   completedGoals: CompletedGoal[];
-  groqApiKey: string;
   currentPage: string;
   forgefitAlerts: ForgefitAlert[];
 }
